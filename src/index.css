@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-surface: #10131a;
+  --color-surface-dim: #10131a;
+  --color-surface-bright: #363940;
+  --color-surface-container-lowest: #0b0e15;
+  --color-surface-container-low: #181c22;
+  --color-surface-container: #1c2026;
+  --color-surface-container-high: #272a31;
+  --color-surface-container-highest: #32353c;
+  
+  --color-on-surface: #e0e2ec;
+  --color-on-surface-variant: #c1c6d5;
+  --color-inverse-surface: #e0e2ec;
+  --color-inverse-on-surface: #2d3038;
+  
+  --color-outline: #8b919f;
+  --color-outline-variant: #414753;
+  
+  --color-primary: #c7c9a2;
+  --color-on-primary: #303216;
+  --color-primary-container: #91936f;
+  
+  --color-secondary: #ffb68a;
+  --color-on-secondary: #522300;
+  --color-secondary-container: #733a0f;
+  
+  --color-tertiary: #d4c4b5;
+  --color-on-tertiary: #392f25;
+  
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+
+  --radius-xl: 1.5rem;
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased;
+  }
+  
+  /* Custom scrollbar for dark mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-container;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-outline-variant rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-outline;
+  }
+}
+
+@layer components {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
