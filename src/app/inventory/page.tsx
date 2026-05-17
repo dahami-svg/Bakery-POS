@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Package, AlertTriangle, Trash2, Edit2, Plus, Search, Calendar, History } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Ingredient } from '../types';
+import { cn } from '@/lib/utils';
+import { Ingredient } from '@/types';
 
 const MOCK_INGREDIENTS: Ingredient[] = [
   { id: '1', name: 'Bread Flour', category: 'Pantry / Dry', currentStock: 85, unit: 'kg', bestBefore: 'Oct 24, 2024' },
@@ -10,7 +12,7 @@ const MOCK_INGREDIENTS: Ingredient[] = [
   { id: '4', name: 'Unsalted Butter', category: 'Fridge / Dairy', currentStock: 18, unit: 'kg', bestBefore: 'Oct 30, 2024' }
 ];
 
-export function InventoryPage() {
+export default function InventoryPage() {
   const [tab, setTab] = useState<'inventory' | 'waste' | 'expiry'>('inventory');
 
   return (

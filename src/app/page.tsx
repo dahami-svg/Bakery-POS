@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { 
   AreaChart, 
@@ -21,7 +23,7 @@ import {
   Calendar,
   Trash2
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn } from '@/lib/utils';
 
 const FORECAST_DATA = [
   { day: 'Mon', predicted: 4000, actual: 3800 },
@@ -59,7 +61,7 @@ const TOP_PRODUCTS = [
   { name: 'Fruit Danish', sales: 112, gain: '+Rs. 672', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&h=100&fit=crop' }
 ];
 
-export function AnalyticsPage() {
+export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-full bg-surface overflow-y-auto scrollbar-hide">
       <header className="px-8 py-8 border-b border-outline-variant bg-surface-container-low/30 sticky top-0 z-10 backdrop-blur-md">
@@ -132,44 +134,44 @@ export function AnalyticsPage() {
              </div>
 
              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={FORECAST_DATA}>
-                    <defs>
-                      <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#c7c9a2" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#c7c9a2" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1c2026" />
-                    <XAxis 
-                      dataKey="day" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: '#8b919f', fontSize: 10, fontWeight: 700}}
-                      dy={10}
-                    />
-                    <YAxis hide />
-                    <Tooltip 
-                      contentStyle={{backgroundColor: '#1c2026', border: '1px solid #414753', borderRadius: '8px', fontSize: '12px'}}
-                      itemStyle={{color: '#e0e2ec'}}
-                    />
-                    <Area type="monotone" dataKey="predicted" stroke="#c7c9a2" strokeWidth={3} fillOpacity={1} fill="url(#colorPred)" />
-                    <Area type="monotone" dataKey="actual" stroke="#8b919f" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                 <ResponsiveContainer width="100%" height="100%">
+                   <AreaChart data={FORECAST_DATA}>
+                     <defs>
+                       <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
+                         <stop offset="5%" stopColor="#c7c9a2" stopOpacity={0.3}/>
+                         <stop offset="95%" stopColor="#c7c9a2" stopOpacity={0}/>
+                       </linearGradient>
+                     </defs>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1c2026" />
+                     <XAxis 
+                       dataKey="day" 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{fill: '#8b919f', fontSize: 10, fontWeight: 700}}
+                       dy={10}
+                     />
+                     <YAxis hide />
+                     <Tooltip 
+                       contentStyle={{backgroundColor: '#1c2026', border: '1px solid #414753', borderRadius: '8px', fontSize: '12px'}}
+                       itemStyle={{color: '#e0e2ec'}}
+                     />
+                     <Area type="monotone" dataKey="predicted" stroke="#c7c9a2" strokeWidth={3} fillOpacity={1} fill="url(#colorPred)" />
+                     <Area type="monotone" dataKey="actual" stroke="#8b919f" strokeWidth={2} strokeDasharray="5 5" fill="transparent" />
+                   </AreaChart>
+                 </ResponsiveContainer>
              </div>
           </div>
 
           {/* Top Products */}
           <div className="lg:col-span-4 p-8 rounded-xl bg-surface-container border border-outline-variant flex flex-col">
              <div className="mb-6">
-                <h2 className="text-xl font-bold text-on-surface">Top Products</h2>
-                <p className="text-on-surface-variant text-xs">Best sellers by volume this week</p>
+                 <h2 className="text-xl font-bold text-on-surface">Top Products</h2>
+                 <p className="text-on-surface-variant text-xs">Best sellers by volume this week</p>
              </div>
              <div className="flex-1 space-y-5">
                {TOP_PRODUCTS.map((prod, i) => (
                  <div key={i} className="flex items-center gap-4 group">
-                    <img src={prod.image} className="size-12 rounded-lg object-cover border border-outline-variant group-hover:scale-105 transition-transform" />
+                    <img src={prod.image} alt={prod.name} className="size-12 rounded-lg object-cover border border-outline-variant group-hover:scale-105 transition-transform" />
                     <div className="flex-1 min-w-0">
                        <p className="text-sm font-bold text-on-surface truncate">{prod.name}</p>
                        <p className="text-[10px] text-on-surface-variant font-medium">{prod.sales} units sold</p>

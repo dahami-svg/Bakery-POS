@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Clock, CheckCircle2, AlertCircle, Timer } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Order } from '../types';
+import { cn } from '@/lib/utils';
+import { Order } from '@/types';
 
 const MOCK_ORDERS: Order[] = [
   {
@@ -41,7 +43,7 @@ const MOCK_ORDERS: Order[] = [
   }
 ];
 
-export function KdsPage() {
+export default function KdsPage() {
   const [filter, setFilter] = useState<'all' | 'new' | 'preparing' | 'ready'>('all');
 
   return (
@@ -109,7 +111,7 @@ export function KdsPage() {
                       <span className={cn(
                         "text-sm font-medium",
                         item.status === 'ready' ? "text-on-surface/40 line-through" : "text-on-surface"
-                      )}>
+                       )}>
                         {item.note}
                       </span>
                     </div>

@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Plus, Minus, X, CreditCard, Cake, Utensils, Cookie, Coffee, ShoppingBag } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { Product, OrderItem } from '../types';
+import { cn } from '@/lib/utils';
+import { Product, OrderItem } from '@/types';
 
 const PRODUCTS: Product[] = [
   { id: '1', name: 'Chocolate Fudge', category: 'Cakes', price: 25.00, image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop', unit: 'Whole Cake' },
@@ -19,7 +21,7 @@ const CATEGORIES = [
   { name: 'Beverages', icon: Coffee }
 ];
 
-export function PosPage() {
+export default function PosPage() {
   const [selectedCategory, setSelectedCategory] = useState('Cakes');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
