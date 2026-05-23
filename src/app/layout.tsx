@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
+import { TenantProvider } from '@/context/TenantContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -10,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Bakery POS & Logistics Manager',
-  description: 'Premium organic bakery analytics, point of sale, kitchen display system, and inventory tracking.',
+  title: 'Universal POS & Logistics Manager',
+  description: 'Premium multi-tenant analytics, point of sale, kitchen display system, and inventory tracking.',
 };
 
 export default function RootLayout({
@@ -22,12 +23,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="h-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
-        <div className="flex bg-surface h-screen w-full overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 min-w-0 h-full">
-            {children}
-          </main>
-        </div>
+        <TenantProvider>
+          <div className="flex bg-surface h-screen w-full overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 min-w-0 h-full">
+              {children}
+            </main>
+          </div>
+        </TenantProvider>
       </body>
     </html>
   );
