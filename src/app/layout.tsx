@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Sidebar } from '@/components/Sidebar';
+import { AuthProvider } from '@/context/AuthContext';
 import { TenantProvider } from '@/context/TenantContext';
+import { AppShell } from '@/components/AppShell';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,14 +24,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="h-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
-        <TenantProvider>
-          <div className="flex bg-surface h-screen w-full overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 min-w-0 h-full">
-              {children}
-            </main>
-          </div>
-        </TenantProvider>
+        <AuthProvider>
+          <TenantProvider>
+            <AppShell>{children}</AppShell>
+          </TenantProvider>
+        </AuthProvider>
       </body>
     </html>
   );

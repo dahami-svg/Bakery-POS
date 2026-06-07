@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Tenant from '@/models/Tenant';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await dbConnect();
-    const tenants = await Tenant.find({}).sort({ name: 1 });
+
+    const role = req.headers.get('x-user-role') || '';
+    const tenantId = req.headers.get('x-user-tenant-id') || '';
+
+    let tenants;
+    if (role === 'super_admin') {
+      tenants = await Tenant.find({}).sort({ name: 1 });
+    } else {
+      tenants = await Tenant.find({ _id: tenantId }).sort({ name: 1 });
+    }
+
     return NextResponse.json({ success: true, data: tenants });
   } catch (error: any) {
     return NextResponse.json(

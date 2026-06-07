@@ -17,9 +17,7 @@ import {
 
 export default function SuperAdminPage() {
   const { tenants, activeTenant, selectTenant, refreshTenants } = useTenant();
-  const [seeding, setSeeding] = useState(false);
-  const [seedSuccess, setSeedSuccess] = useState(false);
-  
+
   // New Tenant Form State
   const [name, setName] = useState('');
   const [type, setType] = useState<'bakery' | 'restaurant' | 'hardware' | 'cake_shop'>('bakery');
@@ -29,25 +27,6 @@ export default function SuperAdminPage() {
 
   // Module toggle status tracking
   const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  // Trigger Database Seeding
-  const handleSeed = async () => {
-    setSeeding(true);
-    setSeedSuccess(false);
-    try {
-      const res = await fetch('/api/seed', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setSeedSuccess(true);
-        await refreshTenants();
-        setTimeout(() => setSeedSuccess(false), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   // Toggle Module in DB
   const handleToggleModule = async (tenant: Tenant, moduleKey: 'analytics' | 'pos' | 'kds' | 'inventory') => {
@@ -71,8 +50,7 @@ export default function SuperAdminPage() {
       if (data.success) {
         await refreshTenants();
       }
-    } catch (err) {
-      console.error('Failed to toggle module:', err);
+    } catch {
     } finally {
       setTogglingId(null);
     }
@@ -125,8 +103,7 @@ export default function SuperAdminPage() {
       if (data.success) {
         await refreshTenants();
       }
-    } catch (err) {
-      console.error('Failed to delete tenant:', err);
+    } catch {
     }
   };
 
@@ -148,18 +125,7 @@ export default function SuperAdminPage() {
               <span className="text-[10px] font-black uppercase tracking-wider">Super Admin Console</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight text-on-surface">Client & Feature Controller</h1>
-            <p className="text-on-surface-variant text-sm mt-1">Manage tenant environments, toggle features, and provision new shop databases.</p>
-          </div>
-          
-          <div className="flex gap-3">
-            <button 
-              onClick={handleSeed}
-              disabled={seeding}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-surface-container-high border border-outline-variant text-on-surface text-xs font-bold hover:bg-surface-variant active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Database size={14} className={seeding ? 'animate-spin' : ''} />
-              {seeding ? 'Seeding...' : seedSuccess ? 'Database Seeded!' : 'Reset & Seed DB'}
-            </button>
+            <p className="text-on-surface-variant text-sm mt-1">Manage tenant environments, toggle features, and provision new shops.</p>
           </div>
         </div>
       </header>
@@ -170,11 +136,6 @@ export default function SuperAdminPage() {
         <section className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-on-surface">Registered Tenants ({tenants.length})</h2>
-            {seedSuccess && (
-              <span className="text-xs text-primary font-bold flex items-center gap-1">
-                <Check size={14} /> Refresh Complete
-              </span>
-            )}
           </div>
 
           <div className="space-y-4">
@@ -262,7 +223,7 @@ export default function SuperAdminPage() {
             {tenants.length === 0 && (
               <div className="text-center py-16 rounded-xl border border-dashed border-outline-variant bg-surface-container/20">
                 <Database className="mx-auto text-on-surface-variant/40 mb-4" size={48} strokeWidth={1} />
-                <p className="text-sm text-on-surface-variant">No tenants found. Click "Reset & Seed DB" to initialize sample data.</p>
+                <p className="text-sm text-on-surface-variant">No tenants found yet. Create a shop to get started.</p>
               </div>
             )}
           </div>
@@ -351,9 +312,6 @@ export default function SuperAdminPage() {
               </p>
               <p>
                 <strong>Restricted Sub-sections</strong>: If a shop is set to <span className="font-semibold text-on-surface">Hardware Shop</span>, the POS disables dining types (such as dine-in and table selections), aligning with a retail checkout.
-              </p>
-              <p>
-                <strong>System Seeding</strong>: Click <span className="font-semibold text-on-surface">Reset & Seed DB</span> above to recreate the default MongoDB dataset (4 preconfigured shops with dummy products, orders, and inventories).
               </p>
             </div>
           </section>

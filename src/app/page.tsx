@@ -80,8 +80,7 @@ export default function AnalyticsPage() {
 
         if (ordersData.success) setOrders(ordersData.data);
         if (invData.success) setInventory(invData.data);
-      } catch (error) {
-        console.error('Error fetching analytics data:', error);
+      } catch {
       } finally {
         setLoadingData(false);
       }

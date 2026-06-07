@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
 export interface Tenant {
   _id: string;
@@ -23,21 +24,21 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [activeTenant, setActiveTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchTenants = async (selectDefault = false) => {
+  const fetchTenants = useCallback(async () => {
     try {
       const response = await fetch('/api/tenants');
       const data = await response.json();
       if (data.success && Array.isArray(data.data)) {
         setTenants(data.data);
-        
-        // Determine which tenant to select
+
         const savedTenantId = typeof window !== 'undefined' ? localStorage.getItem('selectedTenantId') : null;
         const matchedTenant = data.data.find((t: Tenant) => t._id === savedTenantId);
-        
+
         if (matchedTenant) {
           setActiveTenant(matchedTenant);
         } else if (data.data.length > 0) {
@@ -49,16 +50,21 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           setActiveTenant(null);
         }
       }
-    } catch (error) {
-      console.error('Failed to fetch tenants:', error);
+    } catch {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchTenants();
-  }, []);
+    if (user) {
+      fetchTenants();
+    } else {
+      setTenants([]);
+      setActiveTenant(null);
+      setLoading(true);
+    }
+  }, [user, fetchTenants]);
 
   const selectTenant = (tenantId: string) => {
     const selected = tenants.find((t) => t._id === tenantId);

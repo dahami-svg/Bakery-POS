@@ -25,8 +25,7 @@ export default function KdsPage() {
         const activeOrders = data.data.filter((o: any) => o.status !== 'completed' && o.status !== 'cancelled');
         setOrders(activeOrders);
       }
-    } catch (err) {
-      console.error('Failed to load kitchen queue:', err);
+    } catch {
     } finally {
       if (!showSilently) setLoadingOrders(false);
     }
@@ -61,8 +60,7 @@ export default function KdsPage() {
         // Update local state or re-fetch
         await fetchOrders(true);
       }
-    } catch (err) {
-      console.error('Failed to update status:', err);
+    } catch {
     } finally {
       setActionLoading(null);
     }
@@ -92,8 +90,7 @@ export default function KdsPage() {
       if (data.success) {
         await fetchOrders(true);
       }
-    } catch (err) {
-      console.error('Failed to toggle item status:', err);
+    } catch {
     } finally {
       setActionLoading(null);
     }

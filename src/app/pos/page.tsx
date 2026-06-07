@@ -81,8 +81,7 @@ export default function PosPage() {
             setSelectedCategory('');
           }
         }
-      } catch (err) {
-        console.error('Failed to load products:', err);
+      } catch {
       } finally {
         setLoadingProducts(false);
       }
@@ -244,8 +243,7 @@ export default function PosPage() {
       } else {
         alert('Checkout failed: ' + data.message);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert('Network error occurred during checkout.');
     } finally {
       setCheckoutLoading(false);

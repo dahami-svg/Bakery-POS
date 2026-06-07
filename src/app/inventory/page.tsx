@@ -55,8 +55,7 @@ export default function InventoryPage() {
 
       if (invData.success) setInventory(invData.data);
       if (wasteData.success) setWasteLogs(wasteData.data);
-    } catch (err) {
-      console.error('Failed to load inventory data:', err);
+    } catch {
     } finally {
       if (!silent) setLoadingData(false);
     }
@@ -102,8 +101,6 @@ export default function InventoryPage() {
         setShowAddForm(false);
         await fetchData(true);
       }
-    } catch (err) {
-      console.error(err);
     } finally {
       setAddingItem(false);
     }
@@ -138,8 +135,6 @@ export default function InventoryPage() {
       } else {
         alert('Failed to log waste: ' + data.message);
       }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoggingWaste(false);
     }

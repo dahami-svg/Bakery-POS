@@ -13,10 +13,13 @@ import {
   Utensils,
   Wrench,
   Cake,
-  ShieldCheck
+  ShieldCheck,
+  LogOut,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
+import { useAuth } from '@/context/AuthContext';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Analytics', href: '/', module: 'analytics' },
@@ -28,6 +31,9 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { tenants, activeTenant, loading, selectTenant } = useTenant();
+  const { user, logout } = useAuth();
+
+  const isSuperAdmin = user?.role === 'super_admin';
 
   const getTenantIcon = (type?: string) => {
     switch (type) {
@@ -45,10 +51,14 @@ export function Sidebar() {
 
   const TenantIcon = getTenantIcon(activeTenant?.type);
 
-  // Filter nav items based on enabled modules of the active tenant
   const filteredNavItems = navItems.filter(item => 
     activeTenant?.enabledModules.includes(item.module as any)
   );
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/login';
+  };
 
   return (
     <aside className="w-64 bg-surface-container-low border-r border-outline-variant flex flex-col h-screen shrink-0">
@@ -114,7 +124,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* Access Denied / Empty Navigation Indicator */}
         {!loading && filteredNavItems.length === 0 && (
           <div className="p-4 text-center text-on-surface-variant text-xs opacity-50">
             No modules enabled.
@@ -123,18 +132,20 @@ export function Sidebar() {
 
         {/* Divider and Admin section */}
         <div className="mt-6 pt-6 border-t border-outline-variant px-3 space-y-1">
-          <Link
-            href="/super-admin"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60",
-              pathname === '/super-admin'
-                ? "bg-secondary-container text-on-secondary-container border-solid border-secondary"
-                : "text-on-surface-variant hover:bg-surface-variant hover:text-secondary"
-            )}
-          >
-            <ShieldCheck size={20} className="text-secondary" />
-            <p className="text-sm font-bold">Super Admin</p>
-          </Link>
+          {isSuperAdmin && (
+            <Link
+              href="/super-admin"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60",
+                pathname === '/super-admin'
+                  ? "bg-secondary-container text-on-secondary-container border-solid border-secondary"
+                  : "text-on-surface-variant hover:bg-surface-variant hover:text-secondary"
+              )}
+            >
+              <ShieldCheck size={20} className="text-secondary" />
+              <p className="text-sm font-bold">Super Admin</p>
+            </Link>
+          )}
           
           <button className="w-full flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors cursor-pointer text-left">
             <Settings size={20} />
@@ -145,8 +156,8 @@ export function Sidebar() {
 
       {/* AI Insights & Quick Stats */}
       {!loading && activeTenant && (
-        <div className="p-4 mt-auto border-t border-outline-variant bg-surface-container-lowest/20">
-          <div className="bg-surface-container p-3 rounded-lg border border-outline-variant">
+        <div className="p-4 border-t border-outline-variant bg-surface-container-lowest/20">
+          <div className="bg-surface-container p-3 rounded-lg border border-outline-variant mb-3">
             <div className="flex items-center gap-2 mb-2 text-primary">
               <Sparkles size={14} />
               <p className="text-xs font-semibold uppercase tracking-wider">AI Copilot</p>
@@ -158,6 +169,28 @@ export function Sidebar() {
               {activeTenant.type === 'cake_shop' && 'Strawberry prices down 5%. Good time for promotional cakes!'}
             </p>
           </div>
+
+          {/* User Info & Logout */}
+          {user && (
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="size-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <User size={14} className="text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-on-surface truncate">{user.name}</p>
+                  <p className="text-[9px] uppercase font-bold text-on-surface-variant tracking-wider truncate">{user.role.replace('_', ' ')}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-md text-on-surface-variant hover:text-error hover:bg-error/10 transition-all cursor-pointer shrink-0"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </aside>
