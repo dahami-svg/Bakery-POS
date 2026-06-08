@@ -115,26 +115,6 @@ function LoginForm() {
               {submitting ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          <div className="pt-4 border-t border-outline-variant/30">
-            <p className="text-[10px] font-black uppercase text-on-surface-variant tracking-wider mb-3 text-center">Quick Demo Access</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => quickFill('admin@pos.com', 'admin123')}
-                className="p-2.5 rounded-lg bg-surface-container border border-outline-variant text-left hover:bg-surface-container-high transition-all cursor-pointer"
-              >
-                <p className="text-xs font-bold text-on-surface">Super Admin</p>
-                <p className="text-[9px] text-on-surface-variant mt-0.5">Full system access</p>
-              </button>
-              <button
-                onClick={() => quickFill('bakery@demo.com', 'demo123')}
-                className="p-2.5 rounded-lg bg-surface-container border border-outline-variant text-left hover:bg-surface-container-high transition-all cursor-pointer"
-              >
-                <p className="text-xs font-bold text-on-surface">Bakery Admin</p>
-                <p className="text-[9px] text-on-surface-variant mt-0.5">Tenant-scoped</p>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
