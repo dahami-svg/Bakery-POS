@@ -31,6 +31,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (user.passwordSetupRequired) {
+      return NextResponse.json(
+        { success: false, message: 'Finish your account setup from the email invitation before signing in.' },
+        { status: 403 }
+      );
+    }
+
     const token = await signToken({
       userId: user._id.toString(),
       email: user.email,

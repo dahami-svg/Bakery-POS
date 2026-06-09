@@ -3,19 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  ChefHat, 
-  ClipboardList, 
-  Settings, 
-  Sparkles,
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  ChefHat,
+  ClipboardList,
+  Package,
   Utensils,
   Wrench,
   Cake,
   ShieldCheck,
-  LogOut,
-  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
@@ -31,9 +28,10 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { tenants, activeTenant, loading, selectTenant } = useTenant();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const isSuperAdmin = user?.role === 'super_admin';
+  const canManageCatalog = user?.role === 'super_admin' || user?.role === 'tenant_admin';
 
   const getTenantIcon = (type?: string) => {
     switch (type) {
@@ -51,20 +49,14 @@ export function Sidebar() {
 
   const TenantIcon = getTenantIcon(activeTenant?.type);
 
-  const filteredNavItems = navItems.filter(item => 
+  const filteredNavItems = navItems.filter((item) =>
     activeTenant?.enabledModules.includes(item.module as any)
   );
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
-  };
-
   return (
     <aside className="w-64 bg-surface-container-low border-r border-outline-variant flex flex-col h-screen shrink-0">
-      {/* Brand Header & Switcher */}
-      <div className="p-5 border-b border-outline-variant bg-surface-container-lowest/40">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="h-16 px-5 border-b border-outline-variant bg-surface-container-lowest/40 flex items-center">
+        <div className="flex items-center gap-3 min-w-0 w-full">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
             {loading ? (
               <div className="size-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />
@@ -81,48 +73,67 @@ export function Sidebar() {
             </p>
           </div>
         </div>
+      </div>
 
-        {/* Tenant Switcher Dropdown */}
-        {!loading && tenants.length > 0 && (
-          <div className="relative">
-            <select
-              value={activeTenant?._id || ''}
-              onChange={(e) => selectTenant(e.target.value)}
-              className="w-full bg-surface-container-high text-on-surface text-xs font-bold py-2 px-3 pr-8 rounded-lg border border-outline-variant outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
-            >
-              {tenants.map(t => (
-                <option key={t._id} value={t._id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-[8px] font-black">
-              ▼
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
+        {!loading && isSuperAdmin && tenants.length > 0 && (
+          <div className="px-3 pb-4 mb-4 border-b border-outline-variant/60">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+              Active Tenant
+            </label>
+            <div className="relative">
+              <select
+                value={activeTenant?._id || ''}
+                onChange={(e) => selectTenant(e.target.value)}
+                className="w-full bg-surface-container-high text-on-surface text-xs font-bold py-2 px-3 pr-8 rounded-lg border border-outline-variant outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
+              >
+                {tenants.map((tenant) => (
+                  <option key={tenant._id} value={tenant._id}>
+                    {tenant.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-[8px] font-black">
+                v
+              </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Main Nav Menu */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
-        {!loading && filteredNavItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                isActive 
-                  ? "bg-secondary-container text-on-secondary-container" 
-                  : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
-              )}
-            >
-              <item.icon size={20} />
-              <p className="text-sm font-semibold">{item.label}</p>
-            </Link>
-          );
-        })}
+        {!loading &&
+          filteredNavItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                  isActive
+                    ? 'bg-secondary-container text-on-secondary-container'
+                    : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+                )}
+              >
+                <item.icon size={20} />
+                <p className="text-sm font-semibold">{item.label}</p>
+              </Link>
+            );
+          })}
+
+        {!loading && activeTenant?.enabledModules.includes('pos') && canManageCatalog && (
+          <Link
+            href="/catalog"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+              pathname === '/catalog'
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+            )}
+          >
+            <Package size={20} />
+            <p className="text-sm font-semibold">Products</p>
+          </Link>
+        )}
 
         {!loading && filteredNavItems.length === 0 && (
           <div className="p-4 text-center text-on-surface-variant text-xs opacity-50">
@@ -130,69 +141,23 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Divider and Admin section */}
         <div className="mt-6 pt-6 border-t border-outline-variant px-3 space-y-1">
           {isSuperAdmin && (
             <Link
               href="/super-admin"
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60",
+                'flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60',
                 pathname === '/super-admin'
-                  ? "bg-secondary-container text-on-secondary-container border-solid border-secondary"
-                  : "text-on-surface-variant hover:bg-surface-variant hover:text-secondary"
+                  ? 'bg-secondary-container text-on-secondary-container border-solid border-secondary'
+                  : 'text-on-surface-variant hover:bg-surface-variant hover:text-secondary'
               )}
             >
               <ShieldCheck size={20} className="text-secondary" />
               <p className="text-sm font-bold">Super Admin</p>
             </Link>
           )}
-          
-          <button className="w-full flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors cursor-pointer text-left">
-            <Settings size={20} />
-            <p className="text-sm font-medium">Settings</p>
-          </button>
         </div>
       </nav>
-
-      {/* AI Insights & Quick Stats */}
-      {!loading && activeTenant && (
-        <div className="p-4 border-t border-outline-variant bg-surface-container-lowest/20">
-          <div className="bg-surface-container p-3 rounded-lg border border-outline-variant mb-3">
-            <div className="flex items-center gap-2 mb-2 text-primary">
-              <Sparkles size={14} />
-              <p className="text-xs font-semibold uppercase tracking-wider">AI Copilot</p>
-            </div>
-            <p className="text-[11px] leading-relaxed text-on-surface-variant">
-              {activeTenant.type === 'bakery' && 'Sourdough demand is up 15%. Recommend baking +10 units.'}
-              {activeTenant.type === 'hardware' && 'Stock low on WD-40. Recommend ordering 20 cans soon.'}
-              {activeTenant.type === 'restaurant' && 'Friday traffic expected to peak between 7 PM and 9 PM.'}
-              {activeTenant.type === 'cake_shop' && 'Strawberry prices down 5%. Good time for promotional cakes!'}
-            </p>
-          </div>
-
-          {/* User Info & Logout */}
-          {user && (
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="size-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <User size={14} className="text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-on-surface truncate">{user.name}</p>
-                  <p className="text-[9px] uppercase font-bold text-on-surface-variant tracking-wider truncate">{user.role.replace('_', ' ')}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-md text-on-surface-variant hover:text-error hover:bg-error/10 transition-all cursor-pointer shrink-0"
-                title="Sign out"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
     </aside>
   );
 }

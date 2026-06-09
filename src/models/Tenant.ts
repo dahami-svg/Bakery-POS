@@ -5,6 +5,13 @@ export interface ITenant extends Document {
   type: 'bakery' | 'restaurant' | 'hardware' | 'cake_shop';
   enabledModules: ('analytics' | 'pos' | 'kds' | 'inventory')[];
   logoUrl?: string;
+  contactEmail: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  ownerName: string;
+  ownerEmail: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +31,13 @@ const TenantSchema: Schema = new Schema<ITenant>(
       enum: ['analytics', 'pos', 'kds', 'inventory'],
     },
     logoUrl: { type: String },
+    contactEmail: { type: String, required: true, lowercase: true, trim: true },
+    contactPhone: { type: String, required: true, trim: true },
+    addressLine1: { type: String, required: true, trim: true },
+    addressLine2: { type: String, trim: true },
+    city: { type: String, required: true, trim: true },
+    ownerName: { type: String, required: true, trim: true },
+    ownerEmail: { type: String, required: true, lowercase: true, trim: true },
   },
   { timestamps: true }
 );

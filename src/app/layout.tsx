@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { TenantProvider } from '@/context/TenantContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { AppShell } from '@/components/AppShell';
 
 const inter = Inter({
@@ -22,13 +23,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
-        <AuthProvider>
-          <TenantProvider>
-            <AppShell>{children}</AppShell>
-          </TenantProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <TenantProvider>
+              <AppShell>{children}</AppShell>
+            </TenantProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

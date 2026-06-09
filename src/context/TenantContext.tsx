@@ -9,6 +9,13 @@ export interface Tenant {
   type: 'bakery' | 'restaurant' | 'hardware' | 'cake_shop';
   enabledModules: ('analytics' | 'pos' | 'kds' | 'inventory')[];
   logoUrl?: string;
+  contactEmail: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  ownerName: string;
+  ownerEmail: string;
   createdAt: string;
   updatedAt: string;
 }

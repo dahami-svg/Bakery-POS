@@ -16,13 +16,12 @@ export default function KdsPage() {
   const fetchOrders = async (showSilently = false) => {
     if (!activeTenant) return;
     if (!showSilently) setLoadingOrders(true);
-    
+
     try {
       const res = await fetch(`/api/orders?tenantId=${activeTenant._id}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        // KDS only cares about active orders (new, preparing, ready)
-        const activeOrders = data.data.filter((o: any) => o.status !== 'completed' && o.status !== 'cancelled');
+        const activeOrders = data.data.filter((order: any) => order.status !== 'completed' && order.status !== 'cancelled');
         setOrders(activeOrders);
       }
     } catch {
@@ -31,7 +30,6 @@ export default function KdsPage() {
     }
   };
 
-  // Initial load and periodic polling (every 10s)
   useEffect(() => {
     if (!activeTenant) return;
     fetchOrders();
@@ -43,7 +41,6 @@ export default function KdsPage() {
     return () => clearInterval(interval);
   }, [activeTenant]);
 
-  // Update order status in database
   const handleUpdateStatus = async (orderId: string, nextStatus: 'preparing' | 'ready' | 'completed') => {
     setActionLoading(orderId);
     try {
@@ -52,12 +49,11 @@ export default function KdsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: orderId,
-          status: nextStatus
-        })
+          status: nextStatus,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        // Update local state or re-fetch
         await fetchOrders(true);
       }
     } catch {
@@ -66,11 +62,10 @@ export default function KdsPage() {
     }
   };
 
-  // Toggle individual item ready status
   const handleToggleItemStatus = async (order: any, itemIndex: number) => {
     const item = order.items[itemIndex];
     const newStatus = item.status === 'ready' ? 'pending' : 'ready';
-    
+
     setActionLoading(`${order._id}-${itemIndex}`);
     try {
       const res = await fetch('/api/orders', {
@@ -81,10 +76,10 @@ export default function KdsPage() {
           items: [
             {
               id: item._id,
-              status: newStatus
-            }
-          ]
-        })
+              status: newStatus,
+            },
+          ],
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -96,7 +91,6 @@ export default function KdsPage() {
     }
   };
 
-  // Loading indicator
   if (tenantLoading || (activeTenant && loadingOrders)) {
     return (
       <div className="flex items-center justify-center h-full bg-surface">
@@ -108,7 +102,6 @@ export default function KdsPage() {
     );
   }
 
-  // No Tenant State
   if (!activeTenant) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-surface text-center p-8">
@@ -126,7 +119,6 @@ export default function KdsPage() {
     );
   }
 
-  // Check Module Access
   if (!activeTenant.enabledModules.includes('kds')) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-surface text-center p-8">
@@ -145,68 +137,63 @@ export default function KdsPage() {
     );
   }
 
-  // Filtering orders
-  const filteredOrders = orders.filter(o => filter === 'all' || o.status === filter);
+  const filteredOrders = orders.filter((order) => filter === 'all' || order.status === filter);
 
   return (
     <div className="flex flex-col h-full bg-surface-container-lowest p-8 scrollbar-hide overflow-y-auto">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-on-surface">Kitchen Queue</h1>
-          <p className="text-on-surface-variant text-sm mt-1">Station: {activeTenant.name} • {orders.length} active orders</p>
-        </div>
-        
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => fetchOrders()}
             className="p-2 bg-surface-container border border-outline-variant hover:bg-surface-variant text-on-surface-variant hover:text-on-surface rounded-lg cursor-pointer transition-colors active:scale-95"
             title="Refresh Queue"
           >
             <RotateCw size={18} />
           </button>
-          
+
           <div className="flex bg-surface-container p-1 rounded-lg border border-outline-variant overflow-x-auto no-scrollbar">
-            {(['all', 'new', 'preparing', 'ready'] as const).map(f => (
+            {(['all', 'new', 'preparing', 'ready'] as const).map((status) => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
+                key={status}
+                onClick={() => setFilter(status)}
                 className={cn(
-                  "px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition-all cursor-pointer whitespace-nowrap",
-                  filter === f 
-                    ? "bg-primary text-on-primary shadow-sm" 
-                    : "text-on-surface-variant hover:text-on-surface"
+                  'px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition-all cursor-pointer whitespace-nowrap',
+                  filter === status ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                 )}
               >
-                {f === 'all' ? 'All Orders' : `${f} (${orders.filter(o => o.status === f).length})`}
+                {status === 'all' ? 'All Orders' : `${status} (${orders.filter((order) => order.status === status).length})`}
               </button>
             ))}
           </div>
         </div>
       </header>
 
-      {/* Orders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredOrders.map(order => {
+        {filteredOrders.map((order) => {
           const isPreparing = order.status === 'preparing';
           const isNew = order.status === 'new';
           const isReady = order.status === 'ready';
-          
           const timeElapsed = Math.round((Date.now() - new Date(order.createdAt).getTime()) / 60000);
 
           return (
-            <div 
-              key={order._id} 
+            <div
+              key={order._id}
               className={cn(
-                "flex flex-col rounded-xl overflow-hidden border transition-all bg-surface-container",
-                isPreparing ? "border-orange-500/50" : "border-outline-variant"
+                'flex flex-col rounded-xl overflow-hidden border transition-all bg-surface-container',
+                isPreparing ? 'border-orange-500/50' : 'border-outline-variant'
               )}
             >
-              <div className={cn(
-                "px-4 py-2 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.1em]",
-                isPreparing ? "bg-orange-500/20 text-orange-400" : 
-                isNew ? "bg-primary/20 text-primary" : "bg-surface-container-high text-on-surface-variant"
-              )}>
-                <span>{isPreparing ? 'Urgent • preparing' : order.status}</span>
+              <div
+                className={cn(
+                  'px-4 py-2 flex justify-between items-center text-[10px] font-black uppercase tracking-[0.1em]',
+                  isPreparing
+                    ? 'bg-orange-500/20 text-orange-400'
+                    : isNew
+                      ? 'bg-primary/20 text-primary'
+                      : 'bg-surface-container-high text-on-surface-variant'
+                )}
+              >
+                <span>{isPreparing ? 'Urgent - preparing' : order.status}</span>
                 <span>{timeElapsed}m ago</span>
               </div>
 
@@ -215,7 +202,7 @@ export default function KdsPage() {
                   <div>
                     <h3 className="text-xl font-bold text-on-surface">#{order._id.slice(-4).toUpperCase()}</h3>
                     <p className="text-xs text-on-surface-variant mt-1 capitalize">
-                      {order.type.replace('-', ' ')} {order.tableNumber && `• Table ${order.tableNumber}`}
+                      {order.type.replace('-', ' ')} {order.tableNumber && `- Table ${order.tableNumber}`}
                     </p>
                   </div>
                   {isPreparing && (
@@ -227,36 +214,34 @@ export default function KdsPage() {
                   {order.items.map((item: any, idx: number) => {
                     const product = item.productId;
                     if (!product) return null;
+
                     const isItemReady = item.status === 'ready' || item.status === 'delivered';
                     const isItemToggling = actionLoading === `${order._id}-${idx}`;
 
                     return (
-                      <div 
-                        key={item._id || idx} 
+                      <div
+                        key={item._id || idx}
                         onClick={() => handleToggleItemStatus(order, idx)}
                         className={cn(
-                          "flex justify-between items-center group cursor-pointer transition-opacity",
-                          isItemToggling ? "opacity-50 pointer-events-none" : ""
+                          'flex justify-between items-center group cursor-pointer transition-opacity',
+                          isItemToggling ? 'opacity-50 pointer-events-none' : ''
                         )}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-bold text-on-surface">{item.quantity}x</span>
                           <div className="flex flex-col">
-                            <span className={cn(
-                              "text-sm font-medium",
-                              isItemReady ? "text-on-surface/40 line-through" : "text-on-surface"
-                             )}>
+                            <span className={cn('text-sm font-medium', isItemReady ? 'text-on-surface/40 line-through' : 'text-on-surface')}>
                               {product.name}
                             </span>
-                            {item.note && (
-                              <span className="text-[10px] text-secondary font-semibold italic">{item.note}</span>
-                            )}
+                            {item.note && <span className="text-[10px] text-secondary font-semibold italic">{item.note}</span>}
                           </div>
                         </div>
-                        <div className={cn(
-                          "size-5 rounded-full border flex items-center justify-center transition-colors shrink-0",
-                          isItemReady ? "bg-primary border-primary text-on-primary" : "border-outline-variant"
-                        )}>
+                        <div
+                          className={cn(
+                            'size-5 rounded-full border flex items-center justify-center transition-colors shrink-0',
+                            isItemReady ? 'bg-primary border-primary text-on-primary' : 'border-outline-variant'
+                          )}
+                        >
                           {isItemReady && <CheckCircle2 size={12} />}
                         </div>
                       </div>
@@ -269,9 +254,9 @@ export default function KdsPage() {
                     <Timer size={14} />
                     <span className="text-xs font-mono">{timeElapsed} min elapsed</span>
                   </div>
-                  
+
                   {isReady ? (
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(order._id, 'completed')}
                       disabled={actionLoading === order._id}
                       className="bg-primary text-on-primary text-xs font-bold px-4 py-2 rounded-lg hover:bg-primary-container active:scale-95 transition-all cursor-pointer disabled:opacity-50"
@@ -279,12 +264,12 @@ export default function KdsPage() {
                       Dispatch
                     </button>
                   ) : (
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(order._id, isNew ? 'preparing' : 'ready')}
                       disabled={actionLoading === order._id}
                       className={cn(
-                        "text-xs font-bold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer disabled:opacity-50",
-                        isNew ? "bg-secondary text-on-secondary hover:opacity-90" : "bg-primary text-on-primary hover:opacity-90"
+                        'text-xs font-bold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer disabled:opacity-50',
+                        isNew ? 'bg-secondary text-on-secondary hover:opacity-90' : 'bg-primary text-on-primary hover:opacity-90'
                       )}
                     >
                       {isNew ? 'Start Prep' : 'Complete'}
@@ -305,33 +290,33 @@ export default function KdsPage() {
       )}
 
       <footer className="mt-auto pt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-            <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <Timer size={24} />
-            </div>
-            <div>
-              <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Avg Prep Time</p>
-              <p className="text-xl font-bold text-on-surface">6.2 min</p>
-            </div>
-         </div>
-         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-            <div className="size-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
-              <AlertCircle size={24} />
-            </div>
-            <div>
-              <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Kitchen Load</p>
-              <p className="text-xl font-bold text-on-surface">{orders.length > 5 ? 'High Load' : 'Optimal'}</p>
-            </div>
-         </div>
-         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-            <div className="size-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-              <Clock size={24} />
-            </div>
-            <div>
-              <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Est. Wait Time</p>
-              <p className="text-xl font-bold text-on-surface">~{orders.length * 3} min</p>
-            </div>
-         </div>
+        <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
+          <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <Timer size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Avg Prep Time</p>
+            <p className="text-xl font-bold text-on-surface">6.2 min</p>
+          </div>
+        </div>
+        <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
+          <div className="size-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Kitchen Load</p>
+            <p className="text-xl font-bold text-on-surface">{orders.length > 5 ? 'High Load' : 'Optimal'}</p>
+          </div>
+        </div>
+        <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
+          <div className="size-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+            <Clock size={24} />
+          </div>
+          <div>
+            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Est. Wait Time</p>
+            <p className="text-xl font-bold text-on-surface">~{orders.length * 3} min</p>
+          </div>
+        </div>
       </footer>
     </div>
   );

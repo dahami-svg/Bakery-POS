@@ -92,3 +92,33 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Item ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const item = await InventoryItem.findByIdAndDelete(id);
+    if (!item) {
+      return NextResponse.json(
+        { success: false, message: 'Inventory item not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: 'Inventory item deleted successfully' });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: 'Failed to delete inventory item', error: error.message },
+      { status: 500 }
+    );
+  }
+}

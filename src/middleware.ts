@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
 
-const publicRoutes = ['/login', '/api/auth/login'];
+const publicRoutes = ['/login', '/setup-password', '/api/auth/login', '/api/auth/setup-password'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -40,6 +40,15 @@ export async function middleware(req: NextRequest) {
       (pathname.startsWith('/api/tenants') && req.method !== 'GET')
     ) {
       if (payload.role !== 'super_admin') {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
+        return NextResponse.redirect(new URL('/', req.url));
+      }
+    }
+
+    if (pathname.startsWith('/catalog') || (pathname.startsWith('/api/products') && req.method !== 'GET')) {
+      if (payload.role !== 'super_admin' && payload.role !== 'tenant_admin') {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }

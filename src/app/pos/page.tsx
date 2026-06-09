@@ -264,10 +264,6 @@ export default function PosPage() {
             >
               <ArrowLeft size={20} />
             </Link>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-on-surface">New Transaction</h1>
-              <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">{activeTenant.name}</p>
-            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />

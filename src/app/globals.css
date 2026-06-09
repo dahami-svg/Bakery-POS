@@ -2,50 +2,121 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  
-  --color-surface: #10131a;
-  --color-surface-dim: #10131a;
-  --color-surface-bright: #363940;
-  --color-surface-container-lowest: #0b0e15;
-  --color-surface-container-low: #181c22;
-  --color-surface-container: #1c2026;
-  --color-surface-container-high: #272a31;
-  --color-surface-container-highest: #32353c;
-  
-  --color-on-surface: #e0e2ec;
-  --color-on-surface-variant: #c1c6d5;
-  --color-inverse-surface: #e0e2ec;
-  --color-inverse-on-surface: #2d3038;
-  
-  --color-outline: #8b919f;
-  --color-outline-variant: #414753;
-  
-  --color-primary: #c7c9a2;
-  --color-on-primary: #303216;
-  --color-primary-container: #91936f;
-  
-  --color-secondary: #ffb68a;
-  --color-on-secondary: #522300;
-  --color-secondary-container: #733a0f;
-  
-  --color-tertiary: #d4c4b5;
-  --color-on-tertiary: #392f25;
-  
-  --color-error: #ffb4ab;
-  --color-on-error: #690005;
-  --color-error-container: #93000a;
+
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+
+  --color-surface-variant: var(--surface-variant);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
 
   --radius-xl: 1.5rem;
   --radius-lg: 1rem;
   --radius-md: 0.75rem;
 }
 
+:root {
+  --surface: #10131a;
+  --surface-dim: #10131a;
+  --surface-bright: #363940;
+  --surface-container-lowest: #0b0e15;
+  --surface-container-low: #181c22;
+  --surface-container: #1c2026;
+  --surface-container-high: #272a31;
+  --surface-container-highest: #32353c;
+  --surface-variant: #2d3038;
+  --on-surface: #e0e2ec;
+  --on-surface-variant: #c1c6d5;
+  --inverse-surface: #e0e2ec;
+  --inverse-on-surface: #2d3038;
+  --outline: #8b919f;
+  --outline-variant: #414753;
+  --primary: #c7c9a2;
+  --on-primary: #303216;
+  --primary-container: #91936f;
+  --secondary: #ffb68a;
+  --on-secondary: #522300;
+  --secondary-container: #733a0f;
+  --tertiary: #d4c4b5;
+  --on-tertiary: #392f25;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --chart-grid: #1c2026;
+  --chart-tooltip-bg: #1c2026;
+  --chart-tooltip-border: #414753;
+  --chart-tooltip-text: #e0e2ec;
+  --chart-tick: #8b919f;
+  --chart-primary: #c7c9a2;
+}
+
+.light {
+  --surface: #fafafe;
+  --surface-dim: #e0e2ec;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3f8;
+  --surface-container: #e8eaf2;
+  --surface-container-high: #dddff0;
+  --surface-container-highest: #d0d3e3;
+  --surface-variant: #e0e3ed;
+  --on-surface: #1a1d26;
+  --on-surface-variant: #454a58;
+  --inverse-surface: #1a1d26;
+  --inverse-on-surface: #e0e2ec;
+  --outline: #8b919f;
+  --outline-variant: #c4c8d4;
+  --primary: #5e613c;
+  --on-primary: #ffffff;
+  --primary-container: #c7c9a2;
+  --secondary: #8c4a1c;
+  --on-secondary: #ffffff;
+  --secondary-container: #ffb68a;
+  --tertiary: #5b4e3f;
+  --on-tertiary: #ffffff;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --chart-grid: #dde1ee;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #c4c8d4;
+  --chart-tooltip-text: #1a1d26;
+  --chart-tick: #8b919f;
+  --chart-primary: #5e613c;
+}
+
 @layer base {
   body {
     @apply bg-surface text-on-surface font-sans antialiased;
   }
-  
-  /* Custom scrollbar for dark mode */
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
