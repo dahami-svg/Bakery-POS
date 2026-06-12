@@ -13,6 +13,7 @@ import {
   Wrench,
   Cake,
   ShieldCheck,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
@@ -25,7 +26,7 @@ const navItems = [
   { icon: ClipboardList, label: 'Inventory', href: '/inventory', module: 'inventory' },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { tenants, activeTenant, loading, selectTenant } = useTenant();
   const { user } = useAuth();
@@ -48,31 +49,42 @@ export function Sidebar() {
   };
 
   const TenantIcon = getTenantIcon(activeTenant?.type);
+  const HeaderIcon = isSuperAdmin ? ShieldCheck : TenantIcon;
+  const headerTitle = isSuperAdmin ? 'Control Center' : loading ? 'Loading...' : activeTenant?.name || 'No Active Shop';
+  const headerSubtitle = isSuperAdmin
+    ? 'Super Admin'
+    : loading
+      ? 'POS System'
+      : activeTenant?.type.replace('_', ' ') || 'Universal POS';
 
   const filteredNavItems = navItems.filter((item) =>
     activeTenant?.enabledModules.includes(item.module as any)
   );
 
-  return (
-    <aside className="w-64 bg-surface-container-low border-r border-outline-variant flex flex-col h-screen shrink-0">
-      <div className="h-16 px-5 border-b border-outline-variant bg-surface-container-lowest/40 flex items-center">
-        <div className="flex items-center gap-3 min-w-0 w-full">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+  const sidebarContent = (
+    <>
+      <div className="h-16 px-5 border-b border-outline-variant bg-surface-container-lowest/40 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary shrink-0">
             {loading ? (
               <div className="size-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />
             ) : (
-              <TenantIcon size={22} />
+              <HeaderIcon size={22} />
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-on-surface text-sm font-black leading-tight truncate">
-              {loading ? 'Loading...' : activeTenant?.name || 'No Active Shop'}
-            </h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-on-surface text-sm font-black leading-tight truncate">{headerTitle}</h1>
             <p className="text-on-surface-variant text-[10px] uppercase font-bold tracking-widest mt-0.5">
-              {loading ? 'POS System' : activeTenant?.type.replace('_', ' ') || 'Universal POS'}
+              {headerSubtitle}
             </p>
           </div>
         </div>
+        <button
+          onClick={onClose}
+          className="lg:hidden size-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
@@ -107,6 +119,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onClose}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
                   isActive
@@ -123,6 +136,7 @@ export function Sidebar() {
         {!loading && activeTenant?.enabledModules.includes('pos') && canManageCatalog && (
           <Link
             href="/catalog"
+            onClick={onClose}
             className={cn(
               'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
               pathname === '/catalog'
@@ -145,6 +159,7 @@ export function Sidebar() {
           {isSuperAdmin && (
             <Link
               href="/super-admin"
+              onClick={onClose}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60',
                 pathname === '/super-admin'
@@ -153,11 +168,29 @@ export function Sidebar() {
               )}
             >
               <ShieldCheck size={20} className="text-secondary" />
-              <p className="text-sm font-bold">Super Admin</p>
+              <p className="text-sm font-bold">Control Center</p>
             </Link>
           )}
         </div>
       </nav>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />
+      )}
+      <aside
+        className={cn(
+          "bg-surface-container-low border-r border-outline-variant flex flex-col shrink-0 transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 w-64",
+          "lg:relative lg:z-auto lg:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

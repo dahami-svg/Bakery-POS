@@ -164,35 +164,35 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-y-auto scrollbar-hide">
-      <div className="p-8 space-y-8 mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-4 lg:p-8 space-y-4 lg:space-y-8 mx-auto w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {[
             { label: 'Revenue', val: `Rs. ${totalRevenue.toFixed(2)}`, delta: `${completedOrders.length} completed orders`, icon: ShoppingBag, color: 'text-primary' },
             { label: 'Average Ticket', val: `Rs. ${averageOrderValue.toFixed(2)}`, delta: 'Per completed order', icon: Activity, color: 'text-secondary' },
             { label: 'Active Orders', val: activeOrdersCount.toString(), delta: `${orders.length} total orders`, icon: Users, color: 'text-tertiary' },
             { label: 'Low Stock Alert', val: lowStockCount.toString(), delta: lowStockCount > 0 ? 'Needs attention' : 'Inventory is healthy', icon: Trash2, color: lowStockCount > 0 ? 'text-secondary' : 'text-on-surface-variant' },
           ].map((kpi, index) => (
-            <div key={index} className="p-6 rounded-xl bg-surface-container border border-outline-variant hover:border-outline transition-colors group">
+            <div key={index} className="p-4 lg:p-6 rounded-xl bg-surface-container border border-outline-variant hover:border-outline transition-colors group">
               <div className="flex justify-between items-start mb-2">
-                <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">{kpi.label}</p>
-                <kpi.icon className={cn('transition-transform group-hover:scale-110', kpi.color)} size={18} />
+                <p className="text-on-surface-variant text-[10px] lg:text-xs font-bold uppercase tracking-widest">{kpi.label}</p>
+                <kpi.icon className={cn('transition-transform group-hover:scale-110 shrink-0', kpi.color)} size={18} />
               </div>
-              <p className="text-3xl font-black tracking-tight text-on-surface mb-1 truncate">{kpi.val}</p>
+              <p className="text-xl lg:text-3xl font-black tracking-tight text-on-surface mb-1 truncate">{kpi.val}</p>
               <span className="text-[10px] font-bold text-on-surface-variant">{kpi.delta}</span>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 p-8 rounded-xl bg-surface-container border border-outline-variant">
-            <div className="flex items-center justify-between mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
+          <div className="lg:col-span-8 p-4 lg:p-8 rounded-xl bg-surface-container border border-outline-variant">
+            <div className="flex items-center justify-between mb-6 lg:mb-8">
               <div>
-                <h2 className="text-xl font-bold text-on-surface">Sales Trend</h2>
+                <h2 className="text-lg lg:text-xl font-bold text-on-surface">Sales Trend</h2>
                 <p className="text-on-surface-variant text-xs">Last 7 days of completed orders</p>
               </div>
             </div>
 
-            <div className="h-72 w-full">
+            <div className="h-56 lg:h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={salesByDay}>
                     <defs>
@@ -215,15 +215,15 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-4 p-8 rounded-xl bg-surface-container border border-outline-variant flex flex-col">
+          <div className="lg:col-span-4 p-4 lg:p-8 rounded-xl bg-surface-container border border-outline-variant flex flex-col">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-on-surface">Top Products</h2>
+              <h2 className="text-lg lg:text-xl font-bold text-on-surface">Top Products</h2>
               <p className="text-on-surface-variant text-xs">Best sellers by quantity across all orders</p>
             </div>
             <div className="flex-1 space-y-5">
               {topProducts.map((product, index) => (
                 <div key={index} className="flex items-center gap-4 group">
-                  <img src={product.image} alt={product.name} className="size-12 rounded-lg object-cover border border-outline-variant group-hover:scale-105 transition-transform" />
+                  <img src={product.image} alt={product.name} className="size-10 lg:size-12 rounded-lg object-cover border border-outline-variant group-hover:scale-105 transition-transform" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-on-surface truncate">{product.name}</p>
                     <p className="text-[10px] text-on-surface-variant font-medium">{product.sales} units sold</p>
@@ -242,13 +242,13 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-5 p-8 rounded-xl bg-surface-container border border-outline-variant">
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-on-surface">Order Status Mix</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
+          <div className="lg:col-span-5 p-4 lg:p-8 rounded-xl bg-surface-container border border-outline-variant">
+            <div className="mb-6 lg:mb-8">
+              <h2 className="text-lg lg:text-xl font-bold text-on-surface">Order Status Mix</h2>
               <p className="text-on-surface-variant text-xs">Current queue distribution</p>
             </div>
-            <div className="h-64 w-full">
+            <div className="h-52 lg:h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusCounts}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--chart-grid)" />
@@ -268,21 +268,21 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-7 p-8 rounded-xl bg-surface-container border border-outline-variant">
+          <div className="lg:col-span-7 p-4 lg:p-8 rounded-xl bg-surface-container border border-outline-variant">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-on-surface">Recent Orders</h2>
+              <h2 className="text-lg lg:text-xl font-bold text-on-surface">Recent Orders</h2>
               <p className="text-on-surface-variant text-xs">Latest activity flowing through the POS</p>
             </div>
             <div className="space-y-3">
               {recentOrders.map((order) => (
                 <div key={order._id} className="flex items-center justify-between gap-4 rounded-xl border border-outline-variant bg-surface-container-high/40 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">#{order._id.slice(-6).toUpperCase()}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-on-surface truncate">#{order._id.slice(-6).toUpperCase()}</p>
                     <p className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant">
                       {order.type.replace('-', ' ')} · {order.items.length} items
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-sm font-black text-primary">Rs. {Number(order.total).toFixed(2)}</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{order.status}</p>
                   </div>

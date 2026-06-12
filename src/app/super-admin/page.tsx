@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTenant, Tenant } from '@/context/TenantContext';
 import {
   ShieldAlert,
@@ -12,32 +12,12 @@ import {
   ChefHat,
   ClipboardList,
   Sparkles,
-  Package,
-  PencilLine,
   MailCheck,
   Store,
   Copy,
   UserRoundPlus,
   X,
 } from 'lucide-react';
-
-type ProductFormState = {
-  id: string | null;
-  name: string;
-  category: string;
-  price: string;
-  unit: string;
-  image: string;
-};
-
-const emptyProductForm: ProductFormState = {
-  id: null,
-  name: '',
-  category: '',
-  price: '',
-  unit: '',
-  image: '',
-};
 
 type TenantFormState = {
   name: string;
@@ -83,39 +63,6 @@ export default function SuperAdminPage() {
   const [latestInvitation, setLatestInvitation] = useState<InvitationState>(null);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  const [products, setProducts] = useState<any[]>([]);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productSubmitting, setProductSubmitting] = useState(false);
-  const [productForm, setProductForm] = useState<ProductFormState>(emptyProductForm);
-  const [productFeedback, setProductFeedback] = useState('');
-
-  const fetchProducts = async (tenantId: string) => {
-    setProductsLoading(true);
-    try {
-      const res = await fetch(`/api/products?tenantId=${tenantId}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setProducts(data.data);
-      } else {
-        setProducts([]);
-      }
-    } catch {
-      setProducts([]);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setProductFeedback('');
-    setProductForm(emptyProductForm);
-    if (activeTenant?._id) {
-      fetchProducts(activeTenant._id);
-    } else {
-      setProducts([]);
-    }
-  }, [activeTenant?._id]);
 
   const handleToggleModule = async (
     tenant: Tenant,
@@ -236,143 +183,54 @@ export default function SuperAdminPage() {
     setCreateSuccess('Invitation URL copied to clipboard.');
   };
 
-  const updateProductForm = (field: keyof ProductFormState, value: string) => {
-    setProductForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditProduct = (product: any) => {
-    setProductFeedback('');
-    setProductForm({
-      id: product._id,
-      name: product.name,
-      category: product.category,
-      price: String(product.price),
-      unit: product.unit,
-      image: product.image,
-    });
-  };
-
-  const resetProductForm = () => {
-    setProductForm(emptyProductForm);
-  };
-
-  const handleSubmitProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!activeTenant?._id) {
-      setProductFeedback('Select a shop before managing products.');
-      return;
-    }
-
-    if (
-      !productForm.name.trim() ||
-      !productForm.category.trim() ||
-      !productForm.unit.trim() ||
-      !productForm.image.trim() ||
-      productForm.price === ''
-    ) {
-      setProductFeedback('Complete all product fields before saving.');
-      return;
-    }
-
-    setProductSubmitting(true);
-    setProductFeedback('');
-
-    try {
-      const payload = {
-        tenantId: activeTenant._id,
-        name: productForm.name.trim(),
-        category: productForm.category.trim(),
-        unit: productForm.unit.trim(),
-        image: productForm.image.trim(),
-        price: Number(productForm.price),
-      };
-
-      const res = await fetch('/api/products', {
-        method: productForm.id ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productForm.id ? { ...payload, id: productForm.id } : payload),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        await fetchProducts(activeTenant._id);
-        setProductFeedback(productForm.id ? 'Product updated successfully.' : 'Product created successfully.');
-        resetProductForm();
-      } else {
-        setProductFeedback(data.message || 'Could not save product.');
-      }
-    } catch {
-      setProductFeedback('Network error while saving product.');
-    } finally {
-      setProductSubmitting(false);
-    }
-  };
-
-  const handleDeleteProduct = async (productId: string) => {
-    if (!activeTenant?._id) return;
-    if (!confirm('Delete this product from the POS catalog?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/products?id=${productId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        await fetchProducts(activeTenant._id);
-        if (productForm.id === productId) {
-          resetProductForm();
-        }
-        setProductFeedback('Product deleted successfully.');
-      } else {
-        setProductFeedback(data.message || 'Could not delete product.');
-      }
-    } catch {
-      setProductFeedback('Network error while deleting product.');
-    }
-  };
-
   return (
     <div className="flex flex-col h-full bg-surface overflow-y-auto scrollbar-hide">
-      <div className="p-8 space-y-8 mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <section className="lg:col-span-8 space-y-6">
+      <div className="p-4 lg:p-8 space-y-6 lg:space-y-8 mx-auto w-full">
+        <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-on-surface">Registered Tenants ({tenants.length})</h2>
+            <button
+              type="button"
+              onClick={openTenantModal}
+              className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-wider text-on-primary hover:opacity-90"
+            >
+              New Tenant
+            </button>
           </div>
 
           <div className="space-y-4">
             {tenants.map((tenant) => (
               <div
                 key={tenant._id}
-                className={`p-6 rounded-xl bg-surface-container border transition-all ${
+                className={`p-4 lg:p-6 rounded-xl bg-surface-container border transition-all ${
                   activeTenant?._id === tenant._id ? 'border-primary shadow-lg shadow-primary/5' : 'border-outline-variant'
                 }`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-4 min-w-0">
                     <img
                       src={
                         tenant.logoUrl ||
                         'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&h=100&fit=crop'
                       }
                       alt={tenant.name}
-                      className="size-12 rounded-lg object-cover border border-outline-variant bg-surface"
+                      className="size-12 rounded-lg object-cover border border-outline-variant bg-surface shrink-0"
                     />
-                    <div>
-                      <h3 className="text-base font-bold text-on-surface">{tenant.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-on-surface truncate">{tenant.name}</h3>
                       <p className="text-[10px] text-on-surface-variant uppercase font-black tracking-widest mt-0.5">
                         Type: {tenant.type.replace('_', ' ')}
                       </p>
-                      <p className="text-xs text-on-surface-variant mt-2">
+                      <p className="text-xs text-on-surface-variant mt-2 truncate">
                         {tenant.ownerName} • {tenant.ownerEmail}
                       </p>
-                      <p className="text-xs text-on-surface-variant">
+                      <p className="text-xs text-on-surface-variant truncate">
                         {tenant.addressLine1}, {tenant.city}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => selectTenant(tenant._id)}
                       className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
@@ -419,7 +277,7 @@ export default function SuperAdminPage() {
                           <moduleItem.icon size={14} className={isEnabled ? 'text-primary' : 'text-on-surface-variant'} />
                           <span className="truncate">{moduleItem.label}</span>
                           <div
-                            className={`size-3.5 rounded-full border ml-auto flex items-center justify-center ${
+                            className={`size-3.5 rounded-full border ml-auto flex items-center justify-center shrink-0 ${
                               isEnabled ? 'bg-primary border-primary text-on-primary' : 'border-outline-variant'
                             }`}
                           >
@@ -442,38 +300,18 @@ export default function SuperAdminPage() {
           </div>
         </section>
 
-        <aside className="lg:col-span-4 flex flex-col gap-8">
-          <section className="bg-surface-container p-6 rounded-xl border border-outline-variant space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 text-secondary">
-                  <UserRoundPlus size={20} />
-                  <h3 className="text-lg font-bold text-on-surface">Create Tenant Workspace</h3>
-                </div>
-                <p className="text-sm text-on-surface-variant">
-                  Open the tenant onboarding popup to add shop details and owner access.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openTenantModal}
-                className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-wider text-on-primary hover:opacity-90"
-              >
-                New Tenant
-              </button>
-            </div>
-
+        <aside className="flex flex-col gap-8">
+          <section className="space-y-6">
             {latestInvitation && (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-wider text-on-surface">Invitation Ready</p>
-                    <p className="text-sm text-on-surface-variant">
+                    <p className="text-sm text-on-surface-variant truncate">
                       Owner login instructions prepared for {latestInvitation.ownerEmail}
                     </p>
                   </div>
-                  <span className="rounded-full bg-surface px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                  <span className="rounded-full bg-surface px-3 py-1 text-[10px] font-black uppercase tracking-wider text-primary shrink-0">
                     {latestInvitation.emailDelivered ? 'Email Sent' : 'Share Manually'}
                   </span>
                 </div>
@@ -500,183 +338,14 @@ export default function SuperAdminPage() {
             )}
           </section>
 
-          <section className="bg-surface-container p-6 rounded-xl border border-outline-variant space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-primary">
-                <Package size={18} />
-                <h3 className="text-lg font-bold text-on-surface">Product Manager</h3>
-              </div>
-              {activeTenant && (
-                <span className="text-[10px] uppercase font-black tracking-widest text-on-surface-variant">
-                  {activeTenant.name}
-                </span>
-              )}
-            </div>
-
-            {!activeTenant ? (
-              <p className="text-sm text-on-surface-variant">Select a tenant to manage its POS products.</p>
-            ) : (
-              <>
-                <form onSubmit={handleSubmitProduct} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-on-surface-variant">Product Name</label>
-                    <input
-                      type="text"
-                      value={productForm.name}
-                      onChange={(e) => updateProductForm('name', e.target.value)}
-                      placeholder="e.g. Butter Croissant"
-                      className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-on-surface-variant">Category</label>
-                      <input
-                        type="text"
-                        value={productForm.category}
-                        onChange={(e) => updateProductForm('category', e.target.value)}
-                        placeholder="Pastries"
-                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-on-surface-variant">Unit</label>
-                      <input
-                        type="text"
-                        value={productForm.unit}
-                        onChange={(e) => updateProductForm('unit', e.target.value)}
-                        placeholder="each"
-                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-on-surface-variant">Price</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={productForm.price}
-                        onChange={(e) => updateProductForm('price', e.target.value)}
-                        placeholder="450.00"
-                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-on-surface-variant">Image URL</label>
-                      <input
-                        type="text"
-                        value={productForm.image}
-                        onChange={(e) => updateProductForm('image', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-
-                  {productFeedback && <p className="text-xs text-on-surface-variant">{productFeedback}</p>}
-
-                  <div className="flex gap-3">
-                    <button
-                      type="submit"
-                      disabled={productSubmitting}
-                      className="flex-1 bg-primary text-on-primary py-3 rounded-lg font-black text-sm uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {productSubmitting ? 'Saving...' : productForm.id ? 'Update Product' : 'Create Product'}
-                    </button>
-                    {productForm.id && (
-                      <button
-                        type="button"
-                        onClick={resetProductForm}
-                        className="px-4 py-3 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-
-                <div className="space-y-3 border-t border-outline-variant/30 pt-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-black uppercase tracking-wider text-on-surface">Catalog Products</h4>
-                    <span className="text-[10px] font-bold uppercase text-on-surface-variant">
-                      {products.length} items
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
-                    {productsLoading && (
-                      <p className="text-xs text-on-surface-variant">Loading product catalog...</p>
-                    )}
-
-                    {!productsLoading &&
-                      products.map((product) => (
-                        <div
-                          key={product._id}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-outline-variant bg-surface-container-low"
-                        >
-                          <img src={product.image} alt={product.name} className="size-12 rounded-lg object-cover bg-surface" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-on-surface truncate">{product.name}</p>
-                            <p className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant">
-                              {product.category} · {product.unit}
-                            </p>
-                            <p className="text-xs font-semibold text-primary mt-1">Rs. {Number(product.price).toFixed(2)}</p>
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => handleEditProduct(product)}
-                              className="size-9 rounded-lg border border-outline-variant text-on-surface-variant hover:text-primary hover:bg-surface-container-high flex items-center justify-center"
-                            >
-                              <PencilLine size={15} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProduct(product._id)}
-                              className="size-9 rounded-lg border border-outline-variant text-on-surface-variant hover:text-error hover:bg-error/10 flex items-center justify-center"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                    {!productsLoading && products.length === 0 && (
-                      <div className="text-center py-8 rounded-lg border border-dashed border-outline-variant text-xs text-on-surface-variant">
-                        No products yet for this tenant. Add a few so the POS has something to sell.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="bg-surface-container p-6 rounded-xl border border-outline-variant space-y-4">
-            <div className="flex items-center justify-between text-primary">
-              <h3 className="text-sm font-black uppercase text-on-surface tracking-wider">Super Admin Guide</h3>
-              <Sparkles size={16} />
-            </div>
-
-            <div className="space-y-3 text-xs leading-relaxed text-on-surface-variant">
-              <p>
-                <strong>Multi-Tenancy</strong>: Selecting a tenant here updates the product builder and every module view across the app.
-              </p>
-              <p>
-                <strong>Catalog First</strong>: The POS now depends on the per-tenant product catalog managed in this screen, so new shops can be made usable immediately.
-              </p>
-            </div>
-          </section>
         </aside>
       </div>
 
       {isTenantModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-outline-variant bg-surface-container shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 rounded-t-3xl border-b border-outline-variant bg-surface-container px-6 py-5">
-              <div>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 px-4 py-4 lg:py-6 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-outline-variant bg-surface-container shadow-2xl mx-4">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 rounded-t-3xl border-b border-outline-variant bg-surface-container px-4 lg:px-6 py-5">
+              <div className="min-w-0">
                 <div className="flex items-center gap-3 text-secondary">
                   <UserRoundPlus size={20} />
                   <h3 className="text-xl font-bold text-on-surface">Create Tenant Workspace</h3>
@@ -690,13 +359,13 @@ export default function SuperAdminPage() {
                 type="button"
                 onClick={closeTenantModal}
                 disabled={creating}
-                className="rounded-xl border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface disabled:opacity-40"
+                className="rounded-xl border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface disabled:opacity-40 shrink-0"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTenant} className="space-y-5 p-6">
+            <form onSubmit={handleCreateTenant} className="space-y-5 p-4 lg:p-6">
               <div className="rounded-2xl border border-outline-variant/60 bg-surface-container-low/50 p-4 space-y-4">
                 <div className="flex items-center gap-2 text-primary">
                   <Store size={16} />

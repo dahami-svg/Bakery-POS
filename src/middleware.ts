@@ -35,15 +35,26 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set('x-user-role', payload.role);
     requestHeaders.set('x-user-tenant-id', payload.tenantId || '');
 
-    if (
-      pathname.startsWith('/super-admin') ||
-      (pathname.startsWith('/api/tenants') && req.method !== 'GET')
-    ) {
+    if (pathname.startsWith('/super-admin')) {
       if (payload.role !== 'super_admin') {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
         return NextResponse.redirect(new URL('/', req.url));
+      }
+    }
+
+    if (pathname.startsWith('/api/tenants') && req.method !== 'GET') {
+      const isFeePresetSave =
+        req.method === 'PUT' &&
+        /^\/api\/tenants\/[^/]+$/.test(pathname);
+
+      const canManageTenantApi =
+        payload.role === 'super_admin' ||
+        (payload.role === 'tenant_admin' && isFeePresetSave);
+
+      if (!canManageTenantApi) {
+        return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
       }
     }
 

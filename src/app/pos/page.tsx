@@ -19,13 +19,13 @@ import {
   ClipboardList,
   ShieldAlert,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  ReceiptText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
 import Link from 'next/link';
 
-// Dynamically assign an icon to categories
 const getCategoryIcon = (categoryName: string) => {
   const name = categoryName.toLowerCase();
   if (name.includes('cake')) return Cake;
@@ -40,12 +40,13 @@ const getCategoryIcon = (categoryName: string) => {
   return ShoppingBag;
 };
 
+const feeTypeOptions = ['Tax', 'Handling', 'Shipping', 'Delivery', 'Packing', 'Service Charge', 'Discount'];
+
 export default function PosPage() {
-  const { activeTenant, loading: tenantLoading } = useTenant();
+  const { activeTenant, loading: tenantLoading, refreshTenants } = useTenant();
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   
-  // State variables for POS logic
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [cart, setCart] = useState<{ productId: string; quantity: number; note: string }[]>([]);
@@ -53,12 +54,18 @@ export default function PosPage() {
   const [orderType, setOrderType] = useState<'dine-in' | 'takeaway' | 'delivery' | 'quick-sale'>('quick-sale');
   const [tableNumber, setTableNumber] = useState<number | ''>('');
   
-  // Checkout statuses
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState('');
+  const [cartOpen, setCartOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showFeeDialog, setShowFeeDialog] = useState(false);
+  const [savingFeePreset, setSavingFeePreset] = useState(false);
+  const [selectedFeePresetIds, setSelectedFeePresetIds] = useState<string[]>([]);
+  const [newFeeLabel, setNewFeeLabel] = useState('Tax');
+  const [newFeeMode, setNewFeeMode] = useState<'fixed' | 'percentage'>('fixed');
+  const [newFeeAmount, setNewFeeAmount] = useState('0');
 
-  // Fetch products
   useEffect(() => {
     if (!activeTenant) return;
     
@@ -69,17 +76,9 @@ export default function PosPage() {
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           setProducts(data.data);
-          
-          // Dynamically derive categories from products
           const derived = Array.from(new Set(data.data.map((p: any) => p.category))) as string[];
           setCategories(derived);
-          
-          // Select the first category by default
-          if (derived.length > 0) {
-            setSelectedCategory(derived[0]);
-          } else {
-            setSelectedCategory('');
-          }
+          setSelectedCategory('');
         }
       } catch {
       } finally {
@@ -91,8 +90,12 @@ export default function PosPage() {
     setCart([]);
     setTableNumber('');
     setCheckoutSuccess(false);
+    setSelectedFeePresetIds([]);
+    setShowFeeDialog(false);
+    setNewFeeLabel('Tax');
+    setNewFeeMode('fixed');
+    setNewFeeAmount('0');
 
-    // Set order type default based on shop type
     if (activeTenant.type === 'restaurant' || activeTenant.type === 'bakery') {
       setOrderType('dine-in');
     } else {
@@ -100,7 +103,6 @@ export default function PosPage() {
     }
   }, [activeTenant]);
 
-  // Loading Screen
   if (tenantLoading || (activeTenant && loadingProducts)) {
     return (
       <div className="flex items-center justify-center h-full bg-surface">
@@ -112,7 +114,6 @@ export default function PosPage() {
     );
   }
 
-  // No Tenant State
   if (!activeTenant) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-surface text-center p-8">
@@ -130,7 +131,6 @@ export default function PosPage() {
     );
   }
 
-  // Check Module Access
   if (!activeTenant.enabledModules.includes('pos')) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-surface text-center p-8">
@@ -148,7 +148,6 @@ export default function PosPage() {
     );
   }
 
-  // Cart operations
   const addToCart = (product: any) => {
     setCart(prev => {
       const existing = prev.find(item => item.productId === product._id);
@@ -157,6 +156,7 @@ export default function PosPage() {
       }
       return [...prev, { productId: product._id, quantity: 1, note: '' }];
     });
+    setCartOpen(true);
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -182,26 +182,35 @@ export default function PosPage() {
     setCart(prev => prev.filter(item => item.productId !== productId));
   };
 
-  // Calculations
   const subtotal = cart.reduce((acc, item) => {
     const product = products.find(p => p._id === item.productId);
     return acc + (product?.price || 0) * item.quantity;
   }, 0);
 
-  const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const selectedFeePresets = (activeTenant?.feePresets || []).filter((fee) => selectedFeePresetIds.includes(fee._id));
+  const selectedFeeAdjustments = selectedFeePresets.map((fee) => {
+    const amount = fee.mode === 'percentage'
+      ? subtotal * (Number(fee.value || 0) / 100)
+      : Number(fee.value ?? fee.amount ?? 0);
 
-  // Filter items
+    return {
+      label: fee.label,
+      mode: fee.mode,
+      value: Number(fee.value ?? fee.amount ?? 0),
+      amount,
+    };
+  });
+  const adjustmentsTotal = selectedFeeAdjustments.reduce((sum, fee) => sum + fee.amount, 0);
+  const total = Math.max(0, subtotal + adjustmentsTotal);
+
   const filteredProducts = products.filter(p => 
     (selectedCategory === '' || p.category === selectedCategory) && 
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Submit order to backend
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    // Check table number validation if dine-in
     if (orderType === 'dine-in' && !tableNumber) {
       alert('Please specify a Table Number for dine-in orders.');
       return;
@@ -209,8 +218,6 @@ export default function PosPage() {
 
     setCheckoutLoading(true);
     
-    // Determine order and item statuses
-    // If KDS is disabled, we mark order status as 'completed' and item status as 'delivered' (instant sale)
     const hasKds = activeTenant.enabledModules.includes('kds');
     const orderStatus = hasKds ? 'new' : 'completed';
     const itemsStatus = hasKds ? 'pending' : 'delivered';
@@ -230,17 +237,23 @@ export default function PosPage() {
           status: orderStatus,
           type: orderType,
           tableNumber: orderType === 'dine-in' ? Number(tableNumber) : undefined,
-          total: total
+          total: total,
+          pricing: {
+            subtotal,
+            adjustments: selectedFeeAdjustments,
+          }
         })
       });
 
       const data = await res.json();
-      if (data.success) {
-        setSuccessOrderId(data.data._id);
-        setCheckoutSuccess(true);
-        setCart([]);
-        setTableNumber('');
-      } else {
+        if (data.success) {
+          setSuccessOrderId(data.data._id);
+          setCheckoutSuccess(true);
+          setCart([]);
+          setTableNumber('');
+          setCartOpen(false);
+          setSelectedFeePresetIds([]);
+        } else {
         alert('Checkout failed: ' + data.message);
       }
     } catch {
@@ -252,34 +265,347 @@ export default function PosPage() {
 
   const isFoodShop = activeTenant.type === 'restaurant' || activeTenant.type === 'bakery';
 
+  const cartItemsCount = cart.reduce((a, b) => a + b.quantity, 0);
+
+  const saveFeePreset = async () => {
+    if (!activeTenant?._id) return;
+
+    const label = newFeeLabel.trim();
+    const value = Number(newFeeAmount || 0);
+
+    if (!label) {
+      alert('Please select a fee type.');
+      return;
+    }
+
+    setSavingFeePreset(true);
+    try {
+      const currentFees = activeTenant.feePresets || [];
+      const res = await fetch(`/api/tenants/${activeTenant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feePresets: [
+            ...currentFees.map((fee) => ({
+              label: fee.label,
+              mode: fee.mode,
+              value: fee.value,
+              amount: fee.amount,
+            })),
+            {
+              label,
+              mode: newFeeMode,
+              value,
+              amount: newFeeMode === 'percentage' ? 0 : value,
+            },
+          ],
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message || 'Failed to save fee preset.');
+        return;
+      }
+
+      await refreshTenants();
+      const createdFee = data.data?.feePresets?.[data.data.feePresets.length - 1];
+      if (createdFee?._id) {
+        setSelectedFeePresetIds((prev) => [...prev, createdFee._id]);
+      }
+      setShowFeeDialog(false);
+      setNewFeeLabel('Tax');
+      setNewFeeMode('fixed');
+      setNewFeeAmount('0');
+    } catch {
+      alert('Failed to save fee preset.');
+    } finally {
+      setSavingFeePreset(false);
+    }
+  };
+
+  const toggleFeePreset = (feeId: string) => {
+    setSelectedFeePresetIds((prev) => (prev.includes(feeId) ? prev.filter((id) => id !== feeId) : [...prev, feeId]));
+  };
+
+  const renderCartContent = (closeable = false) => (
+    <>
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 scrollbar-hide">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-on-surface">Order Summary</h2>
+            {closeable && (
+              <button
+                onClick={() => setCartOpen(false)}
+                className="lg:hidden size-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          <span className="rounded-full bg-secondary-container px-3 py-1 text-xs font-bold text-on-secondary-container">
+            {cartItemsCount} Items
+          </span>
+        </div>
+
+        {isFoodShop && cart.length > 0 && (
+          <div className="mb-6 bg-surface-container p-3 rounded-lg border border-outline-variant/30 space-y-3">
+            <div className="flex bg-surface-container-low p-1 rounded-md border border-outline-variant/50">
+              {(['dine-in', 'takeaway', 'delivery'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setOrderType(t);
+                    if (t !== 'dine-in') setTableNumber('');
+                  }}
+                  className={cn(
+                    "flex-1 py-1.5 text-center text-xs font-bold capitalize rounded transition-all cursor-pointer",
+                    orderType === t 
+                      ? "bg-primary text-on-primary" 
+                      : "text-on-surface-variant hover:text-on-surface"
+                  )}
+                >
+                  {t.replace('-', ' ')}
+                </button>
+              ))}
+            </div>
+            
+            {orderType === 'dine-in' && (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Table Number:</span>
+                <select
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value ? Number(e.target.value) : '')}
+                  className="flex-1 bg-surface-container-low border border-outline-variant rounded p-1.5 text-xs text-on-surface font-bold outline-none"
+                >
+                  <option value="">Select...</option>
+                  {[2, 4, 6, 8, 10, 12, 14, 16].map(num => (
+                    <option key={num} value={num}>Table {num}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4">
+          {cart.map(item => {
+            const product = products.find(p => p._id === item.productId)!;
+            if (!product) return null;
+            return (
+              <div key={item.productId} className="flex flex-col gap-2 rounded-lg bg-surface-container p-3 border border-outline-variant/10">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-on-surface line-clamp-1">{product.name}</h3>
+                    <p className="text-xs text-on-surface-variant">Unit: {product.unit || 'Standard'}</p>
+                    
+                    <div className="mt-2 flex items-center gap-3">
+                      <button 
+                        onClick={() => updateQuantity(product._id, -1)}
+                        className="flex size-7 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="text-sm font-bold text-on-surface w-4 text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(product._id, 1)}
+                        className="flex size-7 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface active:scale-90 transition-transform cursor-pointer"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-on-surface">Rs. {(product.price * item.quantity).toFixed(2)}</p>
+                    <button 
+                      onClick={() => removeFromCart(product._id)}
+                      className="mt-2 text-error hover:underline text-xs cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                {isFoodShop && (
+                  <input 
+                    type="text"
+                    placeholder="Special note (e.g. no cheese)..."
+                    value={item.note}
+                    onChange={(e) => updateNote(product._id, e.target.value)}
+                    className="w-full bg-surface-container-low border border-outline-variant/40 rounded p-1.5 text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
+                  />
+                )}
+              </div>
+            );
+          })}
+          
+          {cart.length === 0 && !checkoutSuccess && (
+            <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant opacity-50">
+              <ShoppingBag size={48} strokeWidth={1} />
+              <p className="mt-4 text-sm">Your cart is empty</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-outline-variant bg-surface-container-high p-4 sm:p-6 space-y-4">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Subtotal</span>
+            <span className="font-medium text-on-surface">Rs. {subtotal.toFixed(2)}</span>
+          </div>
+          <div className="rounded-xl border border-outline-variant bg-surface px-3 py-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-on-surface">
+                <ReceiptText size={15} />
+                <span className="text-xs font-black uppercase tracking-widest">Adjustments</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFeeDialog(true)}
+                className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-2.5 py-1.5 text-[11px] font-bold text-on-surface hover:bg-surface-container-high"
+              >
+                <Plus size={12} />
+                Add Fee
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {(activeTenant.feePresets || []).map((fee) => (
+                <label key={fee._id} className="grid grid-cols-[18px_1fr_auto] gap-3 items-center rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedFeePresetIds.includes(fee._id)}
+                    onChange={() => toggleFeePreset(fee._id)}
+                    className="size-4 accent-primary"
+                  />
+                  <span className="text-sm text-on-surface font-medium">{fee.label}</span>
+                  <span className="text-xs font-bold text-on-surface-variant">
+                    {fee.mode === 'percentage'
+                      ? `${Number(fee.value || 0).toFixed(2)}%`
+                      : `Rs. ${Number(fee.value ?? fee.amount ?? 0).toFixed(2)}`}
+                  </span>
+                </label>
+              ))}
+
+              {(activeTenant.feePresets || []).length === 0 && (
+                <div className="rounded-lg border border-dashed border-outline-variant px-3 py-4 text-center text-xs text-on-surface-variant">
+                  No saved fees yet. Use Add Fee to create reusable fee presets for this shop.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Adjustments Total</span>
+            <span className="font-medium text-on-surface">Rs. {adjustmentsTotal.toFixed(2)}</span>
+          </div>
+          <div className="pt-2 flex justify-between text-lg font-bold">
+            <span className="text-on-surface">Total</span>
+            <span className="text-primary">Rs. {total.toFixed(2)}</span>
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-3">
+          <button 
+            onClick={handleCheckout}
+            disabled={cart.length === 0 || checkoutLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-lg font-bold text-on-primary shadow-lg hover:shadow-primary/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <CreditCard size={20} />
+            {checkoutLoading ? 'Processing...' : 'Settle Bill'}
+          </button>
+          
+          {cart.length > 0 && (
+            <button 
+              onClick={() => setCart([])}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-outline-variant bg-transparent py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-variant active:scale-95 transition-all cursor-pointer"
+            >
+              <X size={16} />
+              Clear Cart
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* Product Discovery Area */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between border-b border-outline-variant px-6 py-4 bg-surface-container">
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/"
-              className="flex size-10 items-center justify-center rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 cursor-pointer"
-            >
-              <ArrowLeft size={20} />
-            </Link>
+        <header className="flex flex-col border-b border-outline-variant bg-surface-container">
+          <div className="flex items-center justify-between px-4 lg:px-6 py-4">
+            <div className="flex items-center gap-3">
+              <Link 
+                href="/"
+                className="flex size-10 items-center justify-center rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 cursor-pointer"
+              >
+                <ArrowLeft size={20} />
+              </Link>
+              <h2 className="text-sm font-bold text-on-surface hidden sm:block">Products</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowMobileSearch(!showMobileSearch)}
+                className="sm:hidden size-10 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
+              >
+                <Search size={18} />
+              </button>
+              <button
+                onClick={() => setCartOpen(true)}
+                className="lg:hidden relative size-10 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
+              >
+                <ShoppingBag size={18} />
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 size-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </button>
+              <div className="relative hidden sm:block">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search items..." 
+                  className="h-10 w-48 lg:w-64 rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
-            <input 
-              type="text"
-              placeholder="Search items..." 
-              className="h-10 w-64 rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          {showMobileSearch && (
+            <div className="px-4 pb-4 sm:hidden">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search items..." 
+                  className="w-full h-10 rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
         </header>
 
-        {/* Categories Bar */}
         {categories.length > 0 && (
-          <nav className="flex gap-4 border-b border-outline-variant bg-surface px-6 py-3 overflow-x-auto no-scrollbar">
+          <nav className="flex gap-4 border-b border-outline-variant bg-surface px-4 lg:px-6 py-3 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setSelectedCategory('')}
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 lg:px-5 py-2 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer",
+                selectedCategory === ''
+                  ? "bg-primary text-on-primary"
+                  : "bg-surface-container-high text-on-surface-variant hover:bg-surface-variant"
+              )}
+            >
+              <ShoppingBag size={16} />
+              All
+            </button>
             {categories.map(cat => {
               const Icon = getCategoryIcon(cat);
               return (
@@ -287,7 +613,7 @@ export default function PosPage() {
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer",
+                    "flex items-center gap-2 rounded-full px-4 lg:px-5 py-2 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer",
                     selectedCategory === cat 
                       ? "bg-primary text-on-primary" 
                       : "bg-surface-container-high text-on-surface-variant hover:bg-surface-variant"
@@ -301,16 +627,15 @@ export default function PosPage() {
           </nav>
         )}
 
-        {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 scrollbar-hide">
           {checkoutSuccess ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center bg-surface-container/30 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-10">
-              <CheckCircle size={64} className="text-primary mb-4" />
-              <h2 className="text-2xl font-black text-on-surface">Payment Settled</h2>
+            <div className="flex flex-col items-center justify-center py-16 lg:py-20 text-center bg-surface-container/30 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-6 lg:my-10 px-6">
+              <CheckCircle size={56} className="text-primary mb-4" />
+              <h2 className="text-xl lg:text-2xl font-black text-on-surface">Payment Settled</h2>
               <p className="text-on-surface-variant text-sm mt-2 max-w-sm">
                 Order has been successfully registered in the tenant database.
               </p>
-              <div className="bg-surface-container-high/60 px-4 py-2.5 rounded-lg text-xs font-mono text-on-surface mt-4">
+              <div className="bg-surface-container-high/60 px-4 py-2.5 rounded-lg text-xs font-mono text-on-surface mt-4 break-all max-w-full">
                 ID: {successOrderId}
               </div>
               <button 
@@ -322,12 +647,12 @@ export default function PosPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
                 {filteredProducts.map(product => (
                   <button 
                     key={product._id}
                     onClick={() => addToCart(product)}
-                    className="group flex flex-col items-start gap-3 rounded-xl bg-surface-container p-3 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
+                    className="group flex flex-col items-start gap-2 sm:gap-3 rounded-xl bg-surface-container p-2 sm:p-3 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
                   >
                     <div className="aspect-square w-full overflow-hidden rounded-lg bg-surface-variant">
                       <img 
@@ -338,7 +663,7 @@ export default function PosPage() {
                       />
                     </div>
                     <div className="flex-1 w-full min-w-0">
-                      <p className="text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs font-black text-primary">Rs. {product.price.toFixed(2)}</span>
                         <span className="text-[10px] text-on-surface-variant font-bold uppercase">{product.unit}</span>
@@ -359,159 +684,141 @@ export default function PosPage() {
         </div>
       </main>
 
-      {/* Cart Sidebar */}
-      <aside className="w-96 bg-surface-container-low border-l border-outline-variant flex flex-col shrink-0">
-        <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-on-surface">Order Summary</h2>
-            <span className="rounded-full bg-secondary-container px-3 py-1 text-xs font-bold text-on-secondary-container">
-              {cart.reduce((a, b) => a + b.quantity, 0)} Items
-            </span>
-          </div>
+      {/* Desktop cart sidebar */}
+      <aside className="hidden lg:flex w-96 bg-surface-container-low border-l border-outline-variant flex-col shrink-0">
+        {renderCartContent()}
+      </aside>
 
-          {/* Diners & Service Toggle (Only for restaurant/bakery shops) */}
-          {isFoodShop && cart.length > 0 && (
-            <div className="mb-6 bg-surface-container p-3 rounded-lg border border-outline-variant/30 space-y-3">
-              <div className="flex bg-surface-container-low p-1 rounded-md border border-outline-variant/50">
-                {(['dine-in', 'takeaway', 'delivery'] as const).map(t => (
+      {/* Mobile cart drawer */}
+      {cartOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setCartOpen(false)} />
+      )}
+      <aside
+        className={cn(
+          "bg-surface-container-low border-l border-outline-variant flex flex-col",
+          "fixed inset-y-0 right-0 z-50 w-[85vw] max-w-sm transition-transform duration-300 ease-in-out lg:hidden",
+          cartOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {renderCartContent(true)}
+      </aside>
+
+      {/* Floating cart button for mobile */}
+      {cartItemsCount > 0 && !cartOpen && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-6 right-6 z-30 lg:hidden flex items-center gap-3 bg-primary text-on-primary px-5 py-3.5 rounded-full shadow-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+        >
+          <ShoppingBag size={20} />
+          <span className="font-bold text-sm">{cartItemsCount} item{cartItemsCount !== 1 ? 's' : ''}</span>
+          <span className="font-black text-sm">Rs.{total.toFixed(0)}</span>
+        </button>
+      )}
+
+      {showFeeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-outline-variant bg-surface-container shadow-2xl">
+            <div className="flex items-start justify-between gap-4 rounded-t-3xl border-b border-outline-variant bg-surface-container px-6 py-5">
+              <div>
+                <div className="flex items-center gap-3 text-primary">
+                  <ReceiptText size={18} />
+                  <h3 className="text-xl font-bold text-on-surface">Add Fee</h3>
+                </div>
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  Select which fee type you want to add to this order.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowFeeDialog(false)}
+                className="rounded-xl border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-on-surface-variant">Fee Name</label>
+                <select
+                  value={newFeeLabel}
+                  onChange={(e) => setNewFeeLabel(e.target.value)}
+                  className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                >
+                  {feeTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-on-surface-variant">Value Type</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    key={t}
-                    onClick={() => {
-                      setOrderType(t);
-                      if (t !== 'dine-in') setTableNumber('');
-                    }}
+                    type="button"
+                    onClick={() => setNewFeeMode('fixed')}
                     className={cn(
-                      "flex-1 py-1.5 text-center text-xs font-bold capitalize rounded transition-all cursor-pointer",
-                      orderType === t 
-                        ? "bg-primary text-on-primary" 
-                        : "text-on-surface-variant hover:text-on-surface"
+                      "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                      newFeeMode === 'fixed'
+                        ? "border-primary bg-primary text-on-primary"
+                        : "border-outline-variant bg-surface text-on-surface"
                     )}
                   >
-                    {t.replace('-', ' ')}
+                    Fixed Fee
                   </button>
-                ))}
-              </div>
-              
-              {orderType === 'dine-in' && (
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-on-surface-variant whitespace-nowrap">Table Number:</span>
-                  <select
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value ? Number(e.target.value) : '')}
-                    className="flex-1 bg-surface-container-low border border-outline-variant rounded p-1.5 text-xs text-on-surface font-bold outline-none"
+                  <button
+                    type="button"
+                    onClick={() => setNewFeeMode('percentage')}
+                    className={cn(
+                      "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                      newFeeMode === 'percentage'
+                        ? "border-primary bg-primary text-on-primary"
+                        : "border-outline-variant bg-surface text-on-surface"
+                    )}
                   >
-                    <option value="">Select...</option>
-                    {[2, 4, 6, 8, 10, 12, 14, 16].map(num => (
-                      <option key={num} value={num}>Table {num}</option>
-                    ))}
-                  </select>
+                    Percentage
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Cart Items List */}
-          <div className="flex flex-col gap-4">
-            {cart.map(item => {
-              const product = products.find(p => p._id === item.productId)!;
-              if (!product) return null;
-              return (
-                <div key={item.productId} className="flex flex-col gap-2 rounded-lg bg-surface-container p-3 border border-outline-variant/10">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-on-surface line-clamp-1">{product.name}</h3>
-                      <p className="text-xs text-on-surface-variant">Unit: {product.unit || 'Standard'}</p>
-                      
-                      <div className="mt-2 flex items-center gap-3">
-                        <button 
-                          onClick={() => updateQuantity(product._id, -1)}
-                          className="flex size-7 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface active:scale-90 transition-transform cursor-pointer"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <span className="text-sm font-bold text-on-surface w-4 text-center">{item.quantity}</span>
-                        <button 
-                          onClick={() => updateQuantity(product._id, 1)}
-                          className="flex size-7 items-center justify-center rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface active:scale-90 transition-transform cursor-pointer"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-on-surface">Rs. {(product.price * item.quantity).toFixed(2)}</p>
-                      <button 
-                        onClick={() => removeFromCart(product._id)}
-                        className="mt-2 text-error hover:underline text-xs cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Add Notes only for food outlets */}
-                  {isFoodShop && (
-                    <input 
-                      type="text"
-                      placeholder="Special note (e.g. no cheese)..."
-                      value={item.note}
-                      onChange={(e) => updateNote(product._id, e.target.value)}
-                      className="w-full bg-surface-container-low border border-outline-variant/40 rounded p-1.5 text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
-                    />
-                  )}
-                </div>
-              );
-            })}
-            
-            {cart.length === 0 && !checkoutSuccess && (
-              <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant opacity-50">
-                <ShoppingBag size={48} strokeWidth={1} />
-                <p className="mt-4 text-sm">Your cart is empty</p>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Footer Checkout Panel */}
-        <div className="border-t border-outline-variant bg-surface-container-high p-6 space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-on-surface-variant">Subtotal</span>
-              <span className="font-medium text-on-surface">Rs. {subtotal.toFixed(2)}</span>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-on-surface-variant">
+                  {newFeeMode === 'percentage' ? 'Percentage' : 'Amount'}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newFeeAmount}
+                  onChange={(e) => setNewFeeAmount(e.target.value)}
+                  placeholder={newFeeMode === 'percentage' ? '0.00%' : '0.00'}
+                  className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={saveFeePreset}
+                  disabled={savingFeePreset}
+                  className="bg-primary text-on-primary px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {savingFeePreset ? 'Saving...' : 'Save Fee'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => !savingFeePreset && setShowFeeDialog(false)}
+                  className="px-5 py-3 rounded-xl border border-outline-variant text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-on-surface-variant">Tax (8%)</span>
-              <span className="font-medium text-on-surface">Rs. {tax.toFixed(2)}</span>
-            </div>
-            <div className="pt-2 flex justify-between text-lg font-bold">
-              <span className="text-on-surface">Total</span>
-              <span className="text-primary">Rs. {total.toFixed(2)}</span>
-            </div>
-          </div>
-          
-          <div className="flex flex-col gap-3">
-            <button 
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || checkoutLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-lg font-bold text-on-primary shadow-lg hover:shadow-primary/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CreditCard size={20} />
-              {checkoutLoading ? 'Processing...' : 'Settle Bill'}
-            </button>
-            
-            {cart.length > 0 && (
-              <button 
-                onClick={() => setCart([])}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-outline-variant bg-transparent py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-variant active:scale-95 transition-all cursor-pointer"
-              >
-                <X size={16} />
-                Clear Cart
-              </button>
-            )}
           </div>
         </div>
-      </aside>
+      )}
     </div>
   );
 }

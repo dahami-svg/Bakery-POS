@@ -14,6 +14,15 @@ export interface IOrder extends Document {
   status: 'new' | 'preparing' | 'ready' | 'completed' | 'cancelled';
   type: 'dine-in' | 'takeaway' | 'delivery' | 'quick-sale';
   tableNumber?: number;
+  pricing?: {
+    subtotal: number;
+    adjustments: {
+      label: string;
+      mode: 'fixed' | 'percentage';
+      value: number;
+      amount: number;
+    }[];
+  };
   total: number;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +39,27 @@ const OrderItemSchema: Schema = new Schema<IOrderItem>({
     default: 'pending',
   },
 });
+
+const OrderPricingSchema: Schema = new Schema(
+  {
+    subtotal: { type: Number, required: true, default: 0 },
+    adjustments: {
+      type: [
+        new Schema(
+          {
+            label: { type: String, required: true, trim: true },
+            mode: { type: String, enum: ['fixed', 'percentage'], default: 'fixed' },
+            value: { type: Number, required: true, default: 0 },
+            amount: { type: Number, required: true, default: 0 },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+  },
+  { _id: false }
+);
 
 const OrderSchema: Schema = new Schema<IOrder>(
   {
@@ -48,6 +78,7 @@ const OrderSchema: Schema = new Schema<IOrder>(
       default: 'quick-sale',
     },
     tableNumber: { type: Number },
+    pricing: { type: OrderPricingSchema, required: false },
     total: { type: Number, required: true },
   },
   { timestamps: true }

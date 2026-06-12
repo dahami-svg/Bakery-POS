@@ -57,15 +57,15 @@ function LoginForm() {
   };
 
   return (
-    <div className="h-full w-full flex">
-      <div className="flex-1 flex items-center justify-center p-8">
+    <div className="h-full w-full flex flex-col lg:flex-row">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary mb-4">
               <Sparkles size={20} />
               <span className="text-[10px] font-black uppercase tracking-wider">Universal POS</span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-on-surface">Welcome back</h1>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-on-surface">Welcome back</h1>
             <p className="text-on-surface-variant text-sm">Sign in to your account</p>
           </div>
 

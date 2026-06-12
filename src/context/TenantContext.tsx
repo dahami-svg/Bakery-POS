@@ -5,6 +5,13 @@ import { useAuth } from './AuthContext';
 
 export interface Tenant {
   _id: string;
+  feePresets: {
+    _id: string;
+    label: string;
+    mode: 'fixed' | 'percentage';
+    value: number;
+    amount: number;
+  }[];
   name: string;
   type: 'bakery' | 'restaurant' | 'hardware' | 'cake_shop';
   enabledModules: ('analytics' | 'pos' | 'kds' | 'inventory')[];

@@ -140,12 +140,12 @@ export default function KdsPage() {
   const filteredOrders = orders.filter((order) => filter === 'all' || order.status === filter);
 
   return (
-    <div className="flex flex-col h-full bg-surface-container-lowest p-8 scrollbar-hide overflow-y-auto">
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full bg-surface-container-lowest p-4 lg:p-8 scrollbar-hide overflow-y-auto">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8">
+        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
           <button
             onClick={() => fetchOrders()}
-            className="p-2 bg-surface-container border border-outline-variant hover:bg-surface-variant text-on-surface-variant hover:text-on-surface rounded-lg cursor-pointer transition-colors active:scale-95"
+            className="p-2 bg-surface-container border border-outline-variant hover:bg-surface-variant text-on-surface-variant hover:text-on-surface rounded-lg cursor-pointer transition-colors active:scale-95 shrink-0"
             title="Refresh Queue"
           >
             <RotateCw size={18} />
@@ -157,18 +157,18 @@ export default function KdsPage() {
                 key={status}
                 onClick={() => setFilter(status)}
                 className={cn(
-                  'px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition-all cursor-pointer whitespace-nowrap',
+                  'px-3 lg:px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition-all cursor-pointer whitespace-nowrap',
                   filter === status ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                 )}
               >
-                {status === 'all' ? 'All Orders' : `${status} (${orders.filter((order) => order.status === status).length})`}
+                {status === 'all' ? 'All' : `${status} (${orders.filter((order) => order.status === status).length})`}
               </button>
             ))}
           </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
         {filteredOrders.map((order) => {
           const isPreparing = order.status === 'preparing';
           const isNew = order.status === 'new';
@@ -206,7 +206,7 @@ export default function KdsPage() {
                     </p>
                   </div>
                   {isPreparing && (
-                    <span className="bg-orange-950 text-orange-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase">preparing</span>
+                    <span className="bg-orange-950 text-orange-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase shrink-0">preparing</span>
                   )}
                 </div>
 
@@ -227,18 +227,18 @@ export default function KdsPage() {
                           isItemToggling ? 'opacity-50 pointer-events-none' : ''
                         )}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-on-surface">{item.quantity}x</span>
-                          <div className="flex flex-col">
-                            <span className={cn('text-sm font-medium', isItemReady ? 'text-on-surface/40 line-through' : 'text-on-surface')}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-sm font-bold text-on-surface shrink-0">{item.quantity}x</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn('text-sm font-medium truncate', isItemReady ? 'text-on-surface/40 line-through' : 'text-on-surface')}>
                               {product.name}
                             </span>
-                            {item.note && <span className="text-[10px] text-secondary font-semibold italic">{item.note}</span>}
+                            {item.note && <span className="text-[10px] text-secondary font-semibold italic truncate">{item.note}</span>}
                           </div>
                         </div>
                         <div
                           className={cn(
-                            'size-5 rounded-full border flex items-center justify-center transition-colors shrink-0',
+                            'size-5 rounded-full border flex items-center justify-center transition-colors shrink-0 ml-2',
                             isItemReady ? 'bg-primary border-primary text-on-primary' : 'border-outline-variant'
                           )}
                         >
@@ -249,17 +249,17 @@ export default function KdsPage() {
                   })}
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center justify-between pt-2 gap-2">
                   <div className="flex items-center gap-2 text-on-surface-variant">
                     <Timer size={14} />
-                    <span className="text-xs font-mono">{timeElapsed} min elapsed</span>
+                    <span className="text-xs font-mono">{timeElapsed} min</span>
                   </div>
 
                   {isReady ? (
                     <button
                       onClick={() => handleUpdateStatus(order._id, 'completed')}
                       disabled={actionLoading === order._id}
-                      className="bg-primary text-on-primary text-xs font-bold px-4 py-2 rounded-lg hover:bg-primary-container active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                      className="bg-primary text-on-primary text-xs font-bold px-4 py-2 rounded-lg hover:bg-primary-container active:scale-95 transition-all cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       Dispatch
                     </button>
@@ -268,7 +268,7 @@ export default function KdsPage() {
                       onClick={() => handleUpdateStatus(order._id, isNew ? 'preparing' : 'ready')}
                       disabled={actionLoading === order._id}
                       className={cn(
-                        'text-xs font-bold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer disabled:opacity-50',
+                        'text-xs font-bold px-4 py-2 rounded-lg active:scale-95 transition-all cursor-pointer disabled:opacity-50 shrink-0',
                         isNew ? 'bg-secondary text-on-secondary hover:opacity-90' : 'bg-primary text-on-primary hover:opacity-90'
                       )}
                     >
@@ -283,38 +283,38 @@ export default function KdsPage() {
       </div>
 
       {filteredOrders.length === 0 && (
-        <div className="text-center py-20 text-on-surface-variant bg-surface-container/20 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-10">
+        <div className="text-center py-16 lg:py-20 text-on-surface-variant bg-surface-container/20 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-6 lg:my-10">
           <CheckCircle2 size={48} className="mx-auto mb-4 text-primary" strokeWidth={1} />
           <p className="text-sm font-bold">No active orders in this status.</p>
         </div>
       )}
 
-      <footer className="mt-auto pt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <footer className="mt-auto pt-8 lg:pt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-          <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Timer size={24} />
+          <div className="size-10 lg:size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Timer size={20} />
           </div>
-          <div>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Avg Prep Time</p>
-            <p className="text-xl font-bold text-on-surface">6.2 min</p>
+          <div className="min-w-0">
+            <p className="text-[10px] lg:text-xs text-on-surface-variant uppercase font-bold tracking-wider">Avg Prep Time</p>
+            <p className="text-lg lg:text-xl font-bold text-on-surface">6.2 min</p>
           </div>
         </div>
         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-          <div className="size-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
-            <AlertCircle size={24} />
+          <div className="size-10 lg:size-12 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400 shrink-0">
+            <AlertCircle size={20} />
           </div>
-          <div>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Kitchen Load</p>
-            <p className="text-xl font-bold text-on-surface">{orders.length > 5 ? 'High Load' : 'Optimal'}</p>
+          <div className="min-w-0">
+            <p className="text-[10px] lg:text-xs text-on-surface-variant uppercase font-bold tracking-wider">Kitchen Load</p>
+            <p className="text-lg lg:text-xl font-bold text-on-surface">{orders.length > 5 ? 'High Load' : 'Optimal'}</p>
           </div>
         </div>
         <div className="bg-surface-container p-4 rounded-xl border border-outline-variant flex items-center gap-4">
-          <div className="size-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-            <Clock size={24} />
+          <div className="size-10 lg:size-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary shrink-0">
+            <Clock size={20} />
           </div>
-          <div>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-wider">Est. Wait Time</p>
-            <p className="text-xl font-bold text-on-surface">~{orders.length * 3} min</p>
+          <div className="min-w-0">
+            <p className="text-[10px] lg:text-xs text-on-surface-variant uppercase font-bold tracking-wider">Est. Wait Time</p>
+            <p className="text-lg lg:text-xl font-bold text-on-surface">~{orders.length * 3} min</p>
           </div>
         </div>
       </footer>

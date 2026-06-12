@@ -54,6 +54,21 @@ export async function POST(req: NextRequest) {
       status: body.status || 'new',
       type: body.type || 'quick-sale',
       tableNumber: body.tableNumber,
+      pricing: body.pricing
+        ? {
+            subtotal: Number(body.pricing.subtotal || 0),
+            adjustments: Array.isArray(body.pricing.adjustments)
+              ? body.pricing.adjustments
+                  .map((adjustment: any) => ({
+                    label: String(adjustment.label || '').trim(),
+                    mode: adjustment.mode === 'percentage' ? 'percentage' : 'fixed',
+                    value: Number(adjustment.value ?? adjustment.amount ?? 0),
+                    amount: Number(adjustment.amount || 0),
+                  }))
+                  .filter((adjustment: { label: string; mode: 'fixed' | 'percentage'; value: number; amount: number }) => adjustment.label)
+              : [],
+          }
+        : undefined,
       total: body.total,
     });
 
