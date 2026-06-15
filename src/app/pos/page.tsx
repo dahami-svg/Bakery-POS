@@ -6,6 +6,7 @@ import {
   ArrowLeft, 
   Plus, 
   Minus, 
+  Pencil,
   X, 
   CreditCard, 
   Cake, 
@@ -23,8 +24,10 @@ import {
   ReceiptText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLayout } from '@/context/LayoutContext';
 import { useTenant } from '@/context/TenantContext';
 import Link from 'next/link';
+import { getDefaultPosOrderTypes, getPosOrderTypeLabel, PosOrderType } from '@/lib/pos-order-types';
 
 const getCategoryIcon = (categoryName: string) => {
   const name = categoryName.toLowerCase();
@@ -42,7 +45,96 @@ const getCategoryIcon = (categoryName: string) => {
 
 const feeTypeOptions = ['Tax', 'Handling', 'Shipping', 'Delivery', 'Packing', 'Service Charge', 'Discount'];
 
+const getProductSellingPrice = (product: any) => {
+  const effectivePrice = Number(product?.effectivePrice);
+  const basePrice = Number(product?.price || 0);
+  const discountedPrice = Number(product?.discountedPrice);
+
+  if (!Number.isNaN(effectivePrice) && effectivePrice >= 0 && effectivePrice < basePrice) {
+    return effectivePrice;
+  }
+
+  if (
+    product?.discountedPrice !== null &&
+    product?.discountedPrice !== undefined &&
+    !Number.isNaN(discountedPrice) &&
+    discountedPrice >= 0 &&
+    discountedPrice < basePrice
+  ) {
+    return discountedPrice;
+  }
+
+  return basePrice;
+};
+
+const orderTypeContent: Record<PosOrderType, {
+  summaryTitle: string;
+  checkoutLabel: string;
+  successTitle: string;
+  successDescription: string;
+  emptyLabel: string;
+  nextLabel: string;
+}> = {
+  'dine-in': {
+    summaryTitle: 'Order Summary',
+    checkoutLabel: 'Send Order',
+    successTitle: 'Dine-In Order Created',
+    successDescription: 'The dine-in order has been saved and routed through the sales flow.',
+    emptyLabel: 'Your order is empty',
+    nextLabel: 'Next Dine-In Order',
+  },
+  takeaway: {
+    summaryTitle: 'Order Summary',
+    checkoutLabel: 'Confirm Takeaway',
+    successTitle: 'Takeaway Order Created',
+    successDescription: 'The takeaway order has been saved successfully.',
+    emptyLabel: 'Your order is empty',
+    nextLabel: 'Next Takeaway Order',
+  },
+  delivery: {
+    summaryTitle: 'Delivery Summary',
+    checkoutLabel: 'Create Delivery Order',
+    successTitle: 'Delivery Order Created',
+    successDescription: 'The delivery order has been saved successfully.',
+    emptyLabel: 'Your delivery cart is empty',
+    nextLabel: 'Next Delivery Order',
+  },
+  'walk-in': {
+    summaryTitle: 'Sale Summary',
+    checkoutLabel: 'Complete Walk-In Sale',
+    successTitle: 'Walk-In Sale Completed',
+    successDescription: 'The walk-in sale has been recorded successfully.',
+    emptyLabel: 'Your sale is empty',
+    nextLabel: 'Next Walk-In Sale',
+  },
+  quotation: {
+    summaryTitle: 'Quotation Summary',
+    checkoutLabel: 'Save Quotation',
+    successTitle: 'Quotation Saved',
+    successDescription: 'The quotation has been saved successfully.',
+    emptyLabel: 'Your quotation is empty',
+    nextLabel: 'Create Another Quotation',
+  },
+  invoice: {
+    summaryTitle: 'Invoice Summary',
+    checkoutLabel: 'Create Invoice',
+    successTitle: 'Invoice Created',
+    successDescription: 'The invoice has been saved successfully.',
+    emptyLabel: 'Your invoice is empty',
+    nextLabel: 'Create Another Invoice',
+  },
+  'quick-sale': {
+    summaryTitle: 'Sale Summary',
+    checkoutLabel: 'Complete Sale',
+    successTitle: 'Sale Completed',
+    successDescription: 'The sale has been recorded successfully.',
+    emptyLabel: 'Your sale is empty',
+    nextLabel: 'Next Sale',
+  },
+};
+
 export default function PosPage() {
+  const { sidebarOpen } = useLayout();
   const { activeTenant, loading: tenantLoading, refreshTenants } = useTenant();
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -51,20 +143,37 @@ export default function PosPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [cart, setCart] = useState<{ productId: string; quantity: number; note: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [orderType, setOrderType] = useState<'dine-in' | 'takeaway' | 'delivery' | 'quick-sale'>('quick-sale');
+  const [orderType, setOrderType] = useState<PosOrderType>('quick-sale');
   const [tableNumber, setTableNumber] = useState<number | ''>('');
   
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
-  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [savingFeePreset, setSavingFeePreset] = useState(false);
   const [selectedFeePresetIds, setSelectedFeePresetIds] = useState<string[]>([]);
+  const [editingFeePresetId, setEditingFeePresetId] = useState<string | null>(null);
   const [newFeeLabel, setNewFeeLabel] = useState('Tax');
   const [newFeeMode, setNewFeeMode] = useState<'fixed' | 'percentage'>('fixed');
   const [newFeeAmount, setNewFeeAmount] = useState('0');
+
+  const hasKitchenFlow = activeTenant?.enabledModules.includes('kds') ?? false;
+  const terminalTitle = hasKitchenFlow ? 'Products' : 'Items';
+  const specialNotePlaceholder = hasKitchenFlow ? 'Special note for prep team...' : 'Special note';
+  const availableOrderTypes: PosOrderType[] = activeTenant?.posOrderTypes?.length
+    ? activeTenant.posOrderTypes
+    : activeTenant
+      ? getDefaultPosOrderTypes(activeTenant.type, activeTenant.enabledModules)
+      : ['quick-sale'];
+  const currentOrderTypeContent = orderTypeContent[orderType] || orderTypeContent['quick-sale'];
+  const orderSummaryTitle = currentOrderTypeContent.summaryTitle;
+  const checkoutActionLabel = currentOrderTypeContent.checkoutLabel;
+  const successTitle = currentOrderTypeContent.successTitle;
+  const successDescription = currentOrderTypeContent.successDescription;
+  const emptyCartLabel = currentOrderTypeContent.emptyLabel;
+  const nextOrderLabel = currentOrderTypeContent.nextLabel;
+  const compactTabletGrid = sidebarOpen;
 
   useEffect(() => {
     if (!activeTenant) return;
@@ -92,15 +201,12 @@ export default function PosPage() {
     setCheckoutSuccess(false);
     setSelectedFeePresetIds([]);
     setShowFeeDialog(false);
+    setEditingFeePresetId(null);
     setNewFeeLabel('Tax');
     setNewFeeMode('fixed');
     setNewFeeAmount('0');
 
-    if (activeTenant.type === 'restaurant' || activeTenant.type === 'bakery') {
-      setOrderType('dine-in');
-    } else {
-      setOrderType('quick-sale');
-    }
+    setOrderType(availableOrderTypes[0] || 'quick-sale');
   }, [activeTenant]);
 
   if (tenantLoading || (activeTenant && loadingProducts)) {
@@ -108,7 +214,7 @@ export default function PosPage() {
       <div className="flex items-center justify-center h-full bg-surface">
         <div className="flex flex-col items-center gap-3">
           <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Loading POS Terminal...</p>
+          <p className="text-on-surface-variant text-sm font-black tracking-widest">Loading POS Terminal...</p>
         </div>
       </div>
     );
@@ -184,7 +290,7 @@ export default function PosPage() {
 
   const subtotal = cart.reduce((acc, item) => {
     const product = products.find(p => p._id === item.productId);
-    return acc + (product?.price || 0) * item.quantity;
+    return acc + getProductSellingPrice(product) * item.quantity;
   }, 0);
 
   const selectedFeePresets = (activeTenant?.feePresets || []).filter((fee) => selectedFeePresetIds.includes(fee._id));
@@ -211,7 +317,7 @@ export default function PosPage() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    if (orderType === 'dine-in' && !tableNumber) {
+    if (hasKitchenFlow && orderType === 'dine-in' && !tableNumber) {
       alert('Please specify a Table Number for dine-in orders.');
       return;
     }
@@ -263,9 +369,15 @@ export default function PosPage() {
     }
   };
 
-  const isFoodShop = activeTenant.type === 'restaurant' || activeTenant.type === 'bakery';
-
   const cartItemsCount = cart.reduce((a, b) => a + b.quantity, 0);
+
+  const resetFeeDialog = () => {
+    setShowFeeDialog(false);
+    setEditingFeePresetId(null);
+    setNewFeeLabel('Tax');
+    setNewFeeMode('fixed');
+    setNewFeeAmount('0');
+  };
 
   const saveFeePreset = async () => {
     if (!activeTenant?._id) return;
@@ -281,11 +393,23 @@ export default function PosPage() {
     setSavingFeePreset(true);
     try {
       const currentFees = activeTenant.feePresets || [];
-      const res = await fetch(`/api/tenants/${activeTenant._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          feePresets: [
+      const nextFees = editingFeePresetId
+        ? currentFees.map((fee) =>
+            fee._id === editingFeePresetId
+              ? {
+                  label,
+                  mode: newFeeMode,
+                  value,
+                  amount: newFeeMode === 'percentage' ? 0 : value,
+                }
+              : {
+                  label: fee.label,
+                  mode: fee.mode,
+                  value: fee.value,
+                  amount: fee.amount,
+                }
+          )
+        : [
             ...currentFees.map((fee) => ({
               label: fee.label,
               mode: fee.mode,
@@ -298,7 +422,13 @@ export default function PosPage() {
               value,
               amount: newFeeMode === 'percentage' ? 0 : value,
             },
-          ],
+          ];
+
+      const res = await fetch(`/api/tenants/${activeTenant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feePresets: nextFees,
         }),
       });
 
@@ -309,14 +439,12 @@ export default function PosPage() {
       }
 
       await refreshTenants();
-      const createdFee = data.data?.feePresets?.[data.data.feePresets.length - 1];
-      if (createdFee?._id) {
+      const updatedFees = data.data?.feePresets || [];
+      const createdFee = updatedFees[updatedFees.length - 1];
+      if (!editingFeePresetId && createdFee?._id) {
         setSelectedFeePresetIds((prev) => [...prev, createdFee._id]);
       }
-      setShowFeeDialog(false);
-      setNewFeeLabel('Tax');
-      setNewFeeMode('fixed');
-      setNewFeeAmount('0');
+      resetFeeDialog();
     } catch {
       alert('Failed to save fee preset.');
     } finally {
@@ -328,12 +456,28 @@ export default function PosPage() {
     setSelectedFeePresetIds((prev) => (prev.includes(feeId) ? prev.filter((id) => id !== feeId) : [...prev, feeId]));
   };
 
+  const openCreateFeeDialog = () => {
+    setEditingFeePresetId(null);
+    setNewFeeLabel('Tax');
+    setNewFeeMode('fixed');
+    setNewFeeAmount('0');
+    setShowFeeDialog(true);
+  };
+
+  const openEditFeeDialog = (fee: NonNullable<typeof activeTenant>['feePresets'][number]) => {
+    setEditingFeePresetId(fee._id);
+    setNewFeeLabel(fee.label);
+    setNewFeeMode(fee.mode);
+    setNewFeeAmount(String(Number(fee.value ?? fee.amount ?? 0)));
+    setShowFeeDialog(true);
+  };
+
   const renderCartContent = (closeable = false) => (
     <>
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 scrollbar-hide">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-on-surface">Order Summary</h2>
+            <h2 className="text-lg font-bold text-on-surface">{orderSummaryTitle}</h2>
             {closeable && (
               <button
                 onClick={() => setCartOpen(false)}
@@ -348,10 +492,10 @@ export default function PosPage() {
           </span>
         </div>
 
-        {isFoodShop && cart.length > 0 && (
+        {hasKitchenFlow && cart.length > 0 && (
           <div className="mb-6 bg-surface-container p-3 rounded-lg border border-outline-variant/30 space-y-3">
             <div className="flex bg-surface-container-low p-1 rounded-md border border-outline-variant/50">
-              {(['dine-in', 'takeaway', 'delivery'] as const).map(t => (
+              {availableOrderTypes.map((t) => (
                 <button
                   key={t}
                   onClick={() => {
@@ -365,7 +509,7 @@ export default function PosPage() {
                       : "text-on-surface-variant hover:text-on-surface"
                   )}
                 >
-                  {t.replace('-', ' ')}
+                  {getPosOrderTypeLabel(t)}
                 </button>
               ))}
             </div>
@@ -392,12 +536,24 @@ export default function PosPage() {
           {cart.map(item => {
             const product = products.find(p => p._id === item.productId)!;
             if (!product) return null;
+            const unitPrice = getProductSellingPrice(product);
+            const hasDiscount = unitPrice < Number(product.price || 0);
             return (
               <div key={item.productId} className="flex flex-col gap-2 rounded-lg bg-surface-container p-3 border border-outline-variant/10">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-on-surface line-clamp-1">{product.name}</h3>
                     <p className="text-xs text-on-surface-variant">Unit: {product.unit || 'Standard'}</p>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      {hasDiscount && (
+                        <span className="text-[11px] font-bold text-on-surface-variant line-through">
+                          Rs. {Number(product.price).toFixed(2)}
+                        </span>
+                      )}
+                      <span className="text-[11px] font-black text-primary">
+                        Rs. {unitPrice.toFixed(2)}
+                      </span>
+                    </div>
                     
                     <div className="mt-2 flex items-center gap-3">
                       <button 
@@ -417,7 +573,7 @@ export default function PosPage() {
                   </div>
                   
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-on-surface">Rs. {(product.price * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-on-surface">Rs. {(unitPrice * item.quantity).toFixed(2)}</p>
                     <button 
                       onClick={() => removeFromCart(product._id)}
                       className="mt-2 text-error hover:underline text-xs cursor-pointer"
@@ -427,10 +583,10 @@ export default function PosPage() {
                   </div>
                 </div>
 
-                {isFoodShop && (
+                {hasKitchenFlow && (
                   <input 
                     type="text"
-                    placeholder="Special note (e.g. no cheese)..."
+                    placeholder={specialNotePlaceholder}
                     value={item.note}
                     onChange={(e) => updateNote(product._id, e.target.value)}
                     className="w-full bg-surface-container-low border border-outline-variant/40 rounded p-1.5 text-xs text-on-surface outline-none placeholder:text-on-surface-variant/50"
@@ -443,7 +599,7 @@ export default function PosPage() {
           {cart.length === 0 && !checkoutSuccess && (
             <div className="flex flex-col items-center justify-center py-20 text-on-surface-variant opacity-50">
               <ShoppingBag size={48} strokeWidth={1} />
-              <p className="mt-4 text-sm">Your cart is empty</p>
+              <p className="mt-4 text-sm">{emptyCartLabel}</p>
             </div>
           )}
         </div>
@@ -459,11 +615,11 @@ export default function PosPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-on-surface">
                 <ReceiptText size={15} />
-                <span className="text-xs font-black uppercase tracking-widest">Adjustments</span>
+                <span className="text-xs font-black tracking-widest">Additional Fees</span>
               </div>
               <button
                 type="button"
-                onClick={() => setShowFeeDialog(true)}
+                onClick={openCreateFeeDialog}
                 className="inline-flex items-center gap-1 rounded-lg border border-outline-variant px-2.5 py-1.5 text-[11px] font-bold text-on-surface hover:bg-surface-container-high"
               >
                 <Plus size={12} />
@@ -473,20 +629,37 @@ export default function PosPage() {
 
             <div className="space-y-2">
               {(activeTenant.feePresets || []).map((fee) => (
-                <label key={fee._id} className="grid grid-cols-[18px_1fr_auto] gap-3 items-center rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2 cursor-pointer">
+                <div key={fee._id} className="grid grid-cols-[18px_1fr_auto] gap-3 items-center rounded-lg border border-outline-variant bg-surface-container-low px-3 py-2">
                   <input
                     type="checkbox"
                     checked={selectedFeePresetIds.includes(fee._id)}
                     onChange={() => toggleFeePreset(fee._id)}
                     className="size-4 accent-primary"
                   />
-                  <span className="text-sm text-on-surface font-medium">{fee.label}</span>
-                  <span className="text-xs font-bold text-on-surface-variant">
-                    {fee.mode === 'percentage'
-                      ? `${Number(fee.value || 0).toFixed(2)}%`
-                      : `Rs. ${Number(fee.value ?? fee.amount ?? 0).toFixed(2)}`}
-                  </span>
-                </label>
+                  <button
+                    type="button"
+                    onClick={() => toggleFeePreset(fee._id)}
+                    className="min-w-0 text-left"
+                  >
+                    <span className="block text-sm text-on-surface font-medium">{fee.label}</span>
+                  </button>
+                  <div className="flex items-center gap-2 justify-self-end">
+                    <span className="text-xs font-bold text-on-surface-variant">
+                      {fee.mode === 'percentage'
+                        ? `${Number(fee.value || 0).toFixed(2)}%`
+                        : `Rs. ${Number(fee.value ?? fee.amount ?? 0).toFixed(2)}`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openEditFeeDialog(fee)}
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface hover:text-on-surface"
+                      aria-label={`Edit ${fee.label}`}
+                      title={`Edit ${fee.label}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                </div>
               ))}
 
               {(activeTenant.feePresets || []).length === 0 && (
@@ -514,7 +687,7 @@ export default function PosPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-lg font-bold text-on-primary shadow-lg hover:shadow-primary/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CreditCard size={20} />
-            {checkoutLoading ? 'Processing...' : 'Settle Bill'}
+            {checkoutLoading ? 'Processing...' : 'Checkout'}
           </button>
           
           {cart.length > 0 && (
@@ -537,21 +710,25 @@ export default function PosPage() {
         <header className="flex flex-col border-b border-outline-variant bg-surface-container">
           <div className="flex items-center justify-between px-4 lg:px-6 py-4">
             <div className="flex items-center gap-3">
-              <Link 
+              {/* <Link 
                 href="/"
                 className="flex size-10 items-center justify-center rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 cursor-pointer"
               >
                 <ArrowLeft size={20} />
               </Link>
-              <h2 className="text-sm font-bold text-on-surface hidden sm:block">Products</h2>
+              <h2 className="text-sm font-bold text-on-surface hidden sm:block">{terminalTitle}</h2> */}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowMobileSearch(!showMobileSearch)}
-                className="sm:hidden size-10 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
-              >
-                <Search size={18} />
-              </button>
+            <div className="flex flex-1 items-center gap-2">
+              <div className="relative sm:hidden flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search items..." 
+                  className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
               <button
                 onClick={() => setCartOpen(true)}
                 className="lg:hidden relative size-10 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
@@ -563,33 +740,18 @@ export default function PosPage() {
                   </span>
                 )}
               </button>
-              <div className="relative hidden sm:block">
+              <div className="relative hidden sm:block flex-1 min-w-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                 <input 
                   type="text"
                   placeholder="Search items..." 
-                  className="h-10 w-48 lg:w-64 rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
           </div>
-          {showMobileSearch && (
-            <div className="px-4 pb-4 sm:hidden">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
-                <input 
-                  type="text"
-                  placeholder="Search items..." 
-                  className="w-full h-10 rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
-                />
-              </div>
-            </div>
-          )}
         </header>
 
         {categories.length > 0 && (
@@ -631,9 +793,9 @@ export default function PosPage() {
           {checkoutSuccess ? (
             <div className="flex flex-col items-center justify-center py-16 lg:py-20 text-center bg-surface-container/30 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-6 lg:my-10 px-6">
               <CheckCircle size={56} className="text-primary mb-4" />
-              <h2 className="text-xl lg:text-2xl font-black text-on-surface">Payment Settled</h2>
+              <h2 className="text-xl lg:text-2xl font-black text-on-surface">{successTitle}</h2>
               <p className="text-on-surface-variant text-sm mt-2 max-w-sm">
-                Order has been successfully registered in the tenant database.
+                {successDescription}
               </p>
               <div className="bg-surface-container-high/60 px-4 py-2.5 rounded-lg text-xs font-mono text-on-surface mt-4 break-all max-w-full">
                 ID: {successOrderId}
@@ -642,35 +804,50 @@ export default function PosPage() {
                 onClick={() => setCheckoutSuccess(false)}
                 className="mt-8 px-6 py-3 bg-primary text-on-primary text-xs font-black uppercase tracking-wider rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer"
               >
-                Next Order
+                {nextOrderLabel}
               </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-                {filteredProducts.map(product => (
-                  <button 
-                    key={product._id}
-                    onClick={() => addToCart(product)}
-                    className="group flex flex-col items-start gap-2 sm:gap-3 rounded-xl bg-surface-container p-2 sm:p-3 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
-                  >
-                    <div className="aspect-square w-full overflow-hidden rounded-lg bg-surface-variant">
-                      <img 
-                        src={product.image} 
-                        alt={product.name} 
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                    <div className="flex-1 w-full min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs font-black text-primary">Rs. {product.price.toFixed(2)}</span>
-                        <span className="text-[10px] text-on-surface-variant font-bold uppercase">{product.unit}</span>
+              <div className={cn(
+                "grid grid-cols-2 gap-3 sm:gap-4",
+                compactTabletGrid ? "sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5" : "sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5"
+              )}>
+                {filteredProducts.map(product => {
+                  const sellingPrice = getProductSellingPrice(product);
+                  const hasDiscount = sellingPrice < Number(product.price || 0);
+
+                  return (
+                    <button 
+                      key={product._id}
+                      onClick={() => addToCart(product)}
+                      className="group flex flex-col items-start gap-1.5 rounded-xl bg-surface-container p-2 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
+                    >
+                      <div className="h-24 sm:h-28 w-full overflow-hidden rounded-lg bg-surface-variant">
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
                       </div>
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex-1 w-full min-w-0">
+                        <p className="text-xs sm:text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
+                        <div className="mt-0 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            {hasDiscount && (
+                              <span className="text-[10px] font-bold text-on-surface-variant line-through">
+                                Rs. {Number(product.price).toFixed(2)}
+                              </span>
+                            )}
+                            <span className="text-xs font-black text-primary">Rs. {sellingPrice.toFixed(2)}</span>
+                          </div>
+                          <span className="text-[9px] text-on-surface-variant font-bold uppercase">{product.unit}</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               {filteredProducts.length === 0 && (
@@ -722,16 +899,16 @@ export default function PosPage() {
               <div>
                 <div className="flex items-center gap-3 text-primary">
                   <ReceiptText size={18} />
-                  <h3 className="text-xl font-bold text-on-surface">Add Fee</h3>
+                  <h3 className="text-xl font-bold text-on-surface">{editingFeePresetId ? 'Edit Fee' : 'Add Fee'}</h3>
                 </div>
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  Select which fee type you want to add to this order.
+                  {editingFeePresetId ? 'Update the saved fee details for this shop.' : 'Select which fee type you want to add to this order.'}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowFeeDialog(false)}
+                onClick={resetFeeDialog}
                 className="rounded-xl border border-outline-variant p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
               >
                 <X size={18} />
@@ -805,11 +982,11 @@ export default function PosPage() {
                   disabled={savingFeePreset}
                   className="bg-primary text-on-primary px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {savingFeePreset ? 'Saving...' : 'Save Fee'}
+                  {savingFeePreset ? 'Saving...' : editingFeePresetId ? 'Update Fee' : 'Save Fee'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => !savingFeePreset && setShowFeeDialog(false)}
+                  onClick={() => !savingFeePreset && resetFeeDialog()}
                   className="px-5 py-3 rounded-xl border border-outline-variant text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                 >
                   Cancel

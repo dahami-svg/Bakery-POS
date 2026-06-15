@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { LayoutProvider } from '@/context/LayoutContext';
 import { TenantProvider } from '@/context/TenantContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AppShell } from '@/components/AppShell';
@@ -28,7 +29,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <TenantProvider>
-              <AppShell>{children}</AppShell>
+              <LayoutProvider>
+                <AppShell>{children}</AppShell>
+              </LayoutProvider>
             </TenantProvider>
           </AuthProvider>
         </ThemeProvider>

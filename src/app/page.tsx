@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-center h-full bg-surface">
         <div className="flex flex-col items-center gap-3">
           <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Loading Analytics...</p>
+          <p className="text-on-surface-variant text-sm font-black tracking-widest">Loading Analytics...</p>
         </div>
       </div>
     );
@@ -109,7 +109,8 @@ export default function AnalyticsPage() {
   const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total, 0);
   const averageOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
   const lowStockThreshold = activeTenant.type === 'hardware' ? 6 : 20;
-  const lowStockCount = inventory.filter((item) => item.currentStock < lowStockThreshold).length;
+  const lowStockItems = inventory.filter((item) => item.currentStock < lowStockThreshold);
+  const lowStockCount = lowStockItems.length;
 
   const now = new Date();
   const salesByDay = Array.from({ length: 7 }, (_, index) => {
@@ -165,7 +166,7 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-full bg-surface overflow-y-auto scrollbar-hide">
       <div className="p-4 lg:p-8 space-y-4 lg:space-y-8 mx-auto w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {[
             { label: 'Revenue', val: `Rs. ${totalRevenue.toFixed(2)}`, delta: `${completedOrders.length} completed orders`, icon: ShoppingBag, color: 'text-primary' },
             { label: 'Average Ticket', val: `Rs. ${averageOrderValue.toFixed(2)}`, delta: 'Per completed order', icon: Activity, color: 'text-secondary' },
@@ -297,6 +298,44 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+
+        {activeTenant.enabledModules.includes('inventory') && (
+          <div className="rounded-xl border border-outline-variant bg-surface-container p-4 lg:p-8">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-lg lg:text-xl font-bold text-on-surface">Stock Alerts</h2>
+                <p className="text-on-surface-variant text-xs">
+                  Items below the alert threshold for this shop
+                </p>
+              </div>
+              <Link
+                href="/inventory"
+                className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high"
+              >
+                <Download size={14} />
+                Open Inventory
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {lowStockItems.slice(0, 6).map((item) => (
+                <div key={item._id} className="flex items-center gap-4 rounded-xl border border-error/20 bg-error/10 p-3">
+                  <Trash2 className="text-error shrink-0" size={18} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-on-surface truncate">{item.name} low stock</p>
+                    <p className="text-[10px] text-error/80">Only {item.currentStock} {item.unit} remaining</p>
+                  </div>
+                </div>
+              ))}
+
+              {lowStockItems.length === 0 && (
+                <div className="md:col-span-2 xl:col-span-3 text-xs text-on-surface-variant text-center py-4 bg-primary/5 rounded-xl border border-dashed border-primary/20">
+                  All stock quantities are currently healthy.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

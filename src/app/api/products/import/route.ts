@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
       const unit = String(row.unit || '').trim();
       const image = String(row.image || '').trim() || DEFAULT_PRODUCT_IMAGE;
       const price = Number(row.price);
+      const discountedPrice =
+        row.discountedPrice === undefined || row.discountedPrice === null || row.discountedPrice === ''
+          ? null
+          : Number(row.discountedPrice);
 
       if (!name || !category || !unit || Number.isNaN(price)) {
         throw new Error(`Product import row ${index + 1} is invalid.`);
@@ -37,6 +41,7 @@ export async function POST(req: NextRequest) {
         unit,
         image,
         price,
+        discountedPrice: discountedPrice !== null && Number.isNaN(discountedPrice) ? null : discountedPrice,
       };
     });
 

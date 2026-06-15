@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface ITenant extends Document {
+  posOrderTypes: ('dine-in' | 'takeaway' | 'delivery' | 'walk-in' | 'quotation' | 'invoice' | 'quick-sale')[];
   feePresets: {
     label: string;
     mode: 'fixed' | 'percentage';
@@ -9,6 +10,7 @@ export interface ITenant extends Document {
   }[];
   name: string;
   type: 'bakery' | 'restaurant' | 'hardware' | 'cake_shop';
+  isActive: boolean;
   enabledModules: ('analytics' | 'pos' | 'kds' | 'inventory')[];
   logoUrl?: string;
   contactEmail: string;
@@ -44,11 +46,18 @@ const TenantSchema: Schema = new Schema<ITenant>(
       required: true,
       enum: ['bakery', 'restaurant', 'hardware', 'cake_shop'],
     },
+    isActive: { type: Boolean, required: true, default: true },
     enabledModules: {
       type: [String],
       required: true,
       default: ['analytics', 'pos'],
       enum: ['analytics', 'pos', 'kds', 'inventory'],
+    },
+    posOrderTypes: {
+      type: [String],
+      required: true,
+      default: ['quick-sale', 'delivery', 'invoice'],
+      enum: ['dine-in', 'takeaway', 'delivery', 'walk-in', 'quotation', 'invoice', 'quick-sale'],
     },
     logoUrl: { type: String },
     contactEmail: { type: String, required: true, lowercase: true, trim: true },
@@ -62,8 +71,18 @@ const TenantSchema: Schema = new Schema<ITenant>(
   { timestamps: true }
 );
 
+const existingTenantModel = mongoose.models.Tenant as Model<ITenant> | undefined;
+
+// In dev, Next.js can keep an older cached model after schema changes.
+// This makes sure fields like isActive exist without requiring a manual restart.
+if (existingTenantModel && !existingTenantModel.schema.path('isActive')) {
+  existingTenantModel.schema.add({
+    isActive: { type: Boolean, required: true, default: true },
+  });
+}
+
 // Prevent compiling model multiple times in Next.js hot-reloads
 const Tenant: Model<ITenant> =
-  mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema);
+  existingTenantModel || mongoose.model<ITenant>('Tenant', TenantSchema);
 
 export default Tenant;

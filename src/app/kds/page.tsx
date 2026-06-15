@@ -96,7 +96,7 @@ export default function KdsPage() {
       <div className="flex items-center justify-center h-full bg-surface">
         <div className="flex flex-col items-center gap-3">
           <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Loading Kitchen Queue...</p>
+          <p className="text-on-surface-variant text-sm font-black tracking-widest">Loading Kitchen Queue...</p>
         </div>
       </div>
     );

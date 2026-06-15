@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant';
 import User from '@/models/User';
 import { createPasswordSetupToken } from '@/lib/password-setup';
 import { sendTenantInvitationEmail } from '@/lib/mail';
+import { normalizePosOrderTypes } from '@/lib/pos-order-types';
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     const ownerEmail = String(body.ownerEmail).trim().toLowerCase();
     const contactEmail = String(body.contactEmail).trim().toLowerCase();
+    const enabledModules = Array.isArray(body.enabledModules) ? body.enabledModules : ['analytics', 'pos'];
 
     const existingUser = await User.findOne({ email: ownerEmail });
     if (existingUser) {
@@ -69,7 +71,9 @@ export async function POST(req: NextRequest) {
     const tenant = await Tenant.create({
       name: String(body.name).trim(),
       type: body.type,
-      enabledModules: body.enabledModules || ['analytics', 'pos'],
+      isActive: true,
+      enabledModules,
+      posOrderTypes: normalizePosOrderTypes(body.posOrderTypes, body.type, enabledModules),
       logoUrl: body.logoUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=100&h=100&fit=crop',
       contactEmail,
       contactPhone: String(body.contactPhone).trim(),

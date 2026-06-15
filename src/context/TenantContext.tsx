@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 
 export interface Tenant {
+  posOrderTypes: ('dine-in' | 'takeaway' | 'delivery' | 'walk-in' | 'quotation' | 'invoice' | 'quick-sale')[];
   _id: string;
   feePresets: {
     _id: string;
@@ -14,6 +15,7 @@ export interface Tenant {
   }[];
   name: string;
   type: 'bakery' | 'restaurant' | 'hardware' | 'cake_shop';
+  isActive: boolean;
   enabledModules: ('analytics' | 'pos' | 'kds' | 'inventory')[];
   logoUrl?: string;
   contactEmail: string;

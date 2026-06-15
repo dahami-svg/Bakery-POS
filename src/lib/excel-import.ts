@@ -10,6 +10,7 @@ export type ProductImportRow = {
   name: string;
   category: string;
   price: number;
+  discountedPrice: number | null;
   unit: string;
   image: string;
 };
@@ -82,6 +83,11 @@ export function mapProductImportRows(rows: Record<string, unknown>[]) {
     const name = asTrimmedString(getCellValue(row, ['name', 'productname', 'itemname', 'product']));
     const category = asTrimmedString(getCellValue(row, ['category', 'group']));
     const price = asNumber(getCellValue(row, ['price', 'sellingprice', 'amount']));
+    const rawDiscountedPrice = getCellValue(row, ['discountedprice', 'saleprice', 'offerprice', 'discountprice']);
+    const discountedPrice =
+      rawDiscountedPrice === undefined || rawDiscountedPrice === ''
+        ? null
+        : asNumber(rawDiscountedPrice);
     const unit = asTrimmedString(getCellValue(row, ['unit', 'uom']));
     const image = asTrimmedString(getCellValue(row, ['image', 'imageurl', 'photo', 'photourl'])) || DEFAULT_PRODUCT_IMAGE;
 
@@ -97,6 +103,7 @@ export function mapProductImportRows(rows: Record<string, unknown>[]) {
       name,
       category,
       price,
+      discountedPrice: discountedPrice === null || Number.isNaN(discountedPrice) ? null : discountedPrice,
       unit,
       image,
     });

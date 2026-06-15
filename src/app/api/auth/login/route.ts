@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
+import Tenant from '@/models/Tenant';
 import { signToken } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
@@ -36,6 +37,16 @@ export async function POST(req: NextRequest) {
         { success: false, message: 'Finish your account setup from the email invitation before signing in.' },
         { status: 403 }
       );
+    }
+
+    if (user.role !== 'super_admin' && user.tenantId) {
+      const tenant = await Tenant.findById(user.tenantId).select('isActive');
+      if (tenant && tenant.isActive === false) {
+        return NextResponse.json(
+          { success: false, message: 'This tenant workspace is deactivated. Please contact the super admin.' },
+          { status: 403 }
+        );
+      }
     }
 
     const token = await signToken({

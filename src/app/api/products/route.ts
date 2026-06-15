@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Product from '@/models/Product';
+import ProductDiscount from '@/models/ProductDiscount';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,8 +16,53 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const products = await Product.find({ tenantId });
-    return NextResponse.json({ success: true, data: products });
+    const [products, discounts] = await Promise.all([
+      Product.find({ tenantId }),
+      ProductDiscount.find({
+        tenantId,
+        startsAt: { $lte: new Date() },
+        endsAt: { $gte: new Date() },
+      }),
+    ]);
+
+    const decoratedProducts = products.map((product) => {
+      const productDoc = product.toObject();
+      const matchingDiscounts = discounts.filter((discount) =>
+        discount.productIds.some((productId) => productId.toString() === product._id.toString())
+      );
+
+      const bestDiscount = matchingDiscounts.reduce<any | null>((best, discount) => {
+        const discountedValue = discount.mode === 'percentage'
+          ? Number(product.price) * (1 - Number(discount.value || 0) / 100)
+          : Number(discount.value || 0);
+
+        if (discountedValue < 0 || discountedValue >= Number(product.price)) {
+          return best;
+        }
+
+        if (!best || discountedValue < best.effectivePrice) {
+          return {
+            _id: discount._id,
+            title: discount.title,
+            mode: discount.mode,
+            value: discount.value,
+            startsAt: discount.startsAt,
+            endsAt: discount.endsAt,
+            effectivePrice: discountedValue,
+          };
+        }
+
+        return best;
+      }, null);
+
+      return {
+        ...productDoc,
+        effectivePrice: bestDiscount ? bestDiscount.effectivePrice : Number(product.price),
+        activeDiscount: bestDiscount,
+      };
+    });
+
+    return NextResponse.json({ success: true, data: decoratedProducts });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: 'Failed to fetch products', error: error.message },
@@ -29,6 +75,10 @@ export async function POST(req: NextRequest) {
   try {
     await dbConnect();
     const body = await req.json();
+    const discountedPrice =
+      body.discountedPrice === undefined || body.discountedPrice === null || body.discountedPrice === ''
+        ? null
+        : Number(body.discountedPrice);
 
     if (
       !body.tenantId ||
@@ -49,6 +99,7 @@ export async function POST(req: NextRequest) {
       name: body.name,
       category: body.category,
       price: body.price,
+      discountedPrice,
       image: body.image,
       unit: body.unit,
     });
@@ -66,7 +117,7 @@ export async function PUT(req: NextRequest) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { id, name, category, price, image, unit } = body;
+    const { id, name, category, price, discountedPrice, image, unit } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -86,6 +137,10 @@ export async function PUT(req: NextRequest) {
     if (name !== undefined) product.name = name;
     if (category !== undefined) product.category = category;
     if (price !== undefined) product.price = price;
+    if (discountedPrice !== undefined) {
+      product.discountedPrice =
+        discountedPrice === null || discountedPrice === '' ? null : Number(discountedPrice);
+    }
     if (image !== undefined) product.image = image;
     if (unit !== undefined) product.unit = unit;
 

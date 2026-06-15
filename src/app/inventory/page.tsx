@@ -6,10 +6,12 @@ import {
   AlertTriangle,
   Trash2,
   Edit2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
   Plus,
   Search,
   Calendar,
-  History,
   ShieldAlert,
   Loader2,
   FileSpreadsheet,
@@ -48,6 +50,10 @@ export default function InventoryPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [tab, setTab] = useState<'inventory' | 'waste' | 'expiry'>('inventory');
   const [searchQuery, setSearchQuery] = useState('');
+  const [inventorySortKey, setInventorySortKey] = useState<'name' | 'currentStock' | 'bestBefore'>('name');
+  const [inventorySortDirection, setInventorySortDirection] = useState<'asc' | 'desc'>('asc');
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryPageSize, setInventoryPageSize] = useState(5);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportForm, setShowImportForm] = useState(false);
@@ -93,6 +99,10 @@ export default function InventoryPage() {
     setInventoryForm(emptyInventoryForm);
     setFeedbackMessage('');
   }, [activeTenant]);
+
+  useEffect(() => {
+    setInventoryPage(1);
+  }, [searchQuery, inventorySortKey, inventorySortDirection, inventoryPageSize, tab]);
 
   const updateInventoryForm = (field: keyof InventoryForm, value: string | number) => {
     setInventoryForm((prev) => ({ ...prev, [field]: value }));
@@ -290,7 +300,7 @@ export default function InventoryPage() {
       <div className="flex items-center justify-center h-full bg-surface">
         <div className="flex flex-col items-center gap-3">
           <div className="size-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-on-surface-variant text-xs font-bold uppercase tracking-widest">Loading Inventory...</p>
+          <p className="text-on-surface-variant text-sm font-black tracking-widest">Loading Inventory...</p>
         </div>
       </div>
     );
@@ -337,6 +347,8 @@ export default function InventoryPage() {
   const expiringSoonItems = inventory.filter((item) => item.bestBefore && item.bestBefore !== 'N/A');
   const expiringSoonCount = expiringSoonItems.length;
   const totalWasteAmount = wasteLogs.reduce((sum, waste) => sum + waste.amount, 0);
+  const inventoryPageTitle = activeTenant.type === 'hardware' ? 'Stock & Parts' : 'Stock & Inventory';
+  const wasteActionLabel = activeTenant.type === 'hardware' ? 'Log Damage / Loss' : 'Log Damage / Waste';
 
   const filteredInventory = inventory.filter(
     (item) =>
@@ -344,27 +356,55 @@ export default function InventoryPage() {
       item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const sortedInventory = [...filteredInventory].sort((a, b) => {
+    if (inventorySortKey === 'currentStock') {
+      const valueA = Number(a.currentStock || 0);
+      const valueB = Number(b.currentStock || 0);
+      return inventorySortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    if (inventorySortKey === 'bestBefore') {
+      const valueA = String(a.bestBefore || 'N/A');
+      const valueB = String(b.bestBefore || 'N/A');
+      return inventorySortDirection === 'asc'
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    }
+
+    const valueA = String(a.name || '');
+    const valueB = String(b.name || '');
+    return inventorySortDirection === 'asc'
+      ? valueA.localeCompare(valueB)
+      : valueB.localeCompare(valueA);
+  });
+
+  const inventoryTotalPages = Math.max(1, Math.ceil(sortedInventory.length / inventoryPageSize));
+  const paginatedInventory = sortedInventory.slice(
+    (inventoryPage - 1) * inventoryPageSize,
+    inventoryPage * inventoryPageSize
+  );
+
+  const handleInventorySort = (key: 'name' | 'currentStock' | 'bestBefore') => {
+    if (inventorySortKey === key) {
+      setInventorySortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setInventorySortKey(key);
+    setInventorySortDirection(key === 'currentStock' ? 'desc' : 'asc');
+  };
+
   return (
     <div className="flex flex-col h-full bg-surface">
       <header className="px-4 md:px-6 xl:px-10 py-4 lg:py-5 border-b border-outline-variant bg-surface-container-low/50 space-y-4 lg:space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex gap-3 items-center flex-wrap">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
-              <input
-                type="text"
-                placeholder="Search stock..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 w-full sm:w-64 rounded-lg border-none bg-surface-container-high pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
-              />
-            </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:flex md:flex-wrap md:items-center">
             <button
               onClick={openCreateForm}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black tracking-wider text-on-primary hover:opacity-90 active:scale-95 transition-all shrink-0"
+              className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 py-2.5 text-[11px] font-black tracking-wide text-on-primary hover:opacity-90 active:scale-95 transition-all md:gap-2 md:px-4 md:text-xs md:tracking-wider shrink-0"
             >
               <Plus size={14} />
-              Add Item
+              <span className="truncate">Add Item</span>
             </button>
             <input
               ref={inventoryImportRef}
@@ -376,18 +416,18 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={openImportForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-50 shrink-0"
+              className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-outline-variant bg-surface px-2 py-2.5 text-[11px] font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-50 md:gap-2 md:px-4 md:text-xs shrink-0"
             >
               <Upload size={14} />
-              Import Excel
+              <span className="truncate">Import Excel</span>
             </button>
             <button
               type="button"
               onClick={openWasteForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high shrink-0"
+              className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-outline-variant bg-surface px-2 py-2.5 text-[11px] font-bold text-on-surface hover:bg-surface-container-high md:gap-2 md:px-4 md:text-xs shrink-0"
             >
               <Trash2 size={14} />
-              Log Damage / Waste
+              <span className="truncate">{wasteActionLabel}</span>
             </button>
           </div>
         </div>
@@ -412,7 +452,7 @@ export default function InventoryPage() {
       </header>
 
       <main className="flex-1 p-4 md:p-6 xl:p-8 overflow-y-auto scrollbar-hide grid grid-cols-12 auto-rows-max items-start gap-4 xl:gap-6">
-        <div className="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
+        <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
           {[
             {
               label: 'Total Items',
@@ -468,19 +508,101 @@ export default function InventoryPage() {
 
           {tab === 'inventory' ? (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-on-surface">Live Inventory</h2>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-on-surface">{inventoryPageTitle}</h2>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative min-w-[220px] flex-1 sm:flex-none">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search stock..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-10 w-full sm:w-64 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                    />
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Sort by
+                    <select
+                      value={`${inventorySortKey}:${inventorySortDirection}`}
+                      onChange={(e) => {
+                        const [key, direction] = e.target.value.split(':') as [
+                          'name' | 'currentStock' | 'bestBefore',
+                          'asc' | 'desc'
+                        ];
+                        setInventorySortKey(key);
+                        setInventorySortDirection(direction);
+                      }}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      <option value="name:asc">Name A-Z</option>
+                      <option value="name:desc">Name Z-A</option>
+                      <option value="currentStock:desc">Stock High-Low</option>
+                      <option value="currentStock:asc">Stock Low-High</option>
+                      <option value="bestBefore:asc">Expiry A-Z</option>
+                      <option value="bestBefore:desc">Expiry Z-A</option>
+                    </select>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Rows
+                    <select
+                      value={inventoryPageSize}
+                      onChange={(e) => setInventoryPageSize(Number(e.target.value))}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      {[5, 10, 20, 30].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
               <div className="overflow-x-auto rounded-xl border border-outline-variant bg-surface-container">
                 <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-surface-container-high/50 text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant">
-                      <th className="px-4 lg:px-6 py-4">Item Name</th>
-                      <th className="px-4 lg:px-6 py-4">Current Stock</th>
-                      <th className="px-4 lg:px-6 py-4">Expiry Tracking</th>
-                      <th className="px-4 lg:px-6 py-4 text-right">Actions</th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleInventorySort('name')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Item Name
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleInventorySort('currentStock')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Current Stock
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleInventorySort('bestBefore')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Expiry Tracking
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30">
-                    {filteredInventory.map((item) => {
+                    {paginatedInventory.map((item) => {
                       const isLow = item.currentStock < lowStockThreshold;
                       return (
                         <tr key={item._id} className="hover:bg-surface-container-high/40 transition-colors group">
@@ -524,7 +646,7 @@ export default function InventoryPage() {
                       );
                     })}
 
-                    {filteredInventory.length === 0 && (
+                    {paginatedInventory.length === 0 && (
                       <tr>
                         <td colSpan={4} className="text-center py-10 text-on-surface-variant opacity-50 text-xs">
                           No inventory records matched your filter.
@@ -535,29 +657,39 @@ export default function InventoryPage() {
                 </table>
               </div>
 
-              <section className="rounded-xl border border-outline-variant bg-surface-container p-5 lg:p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black uppercase text-on-surface">Stock Alerts</h3>
-                  <History size={16} className="text-on-surface-variant" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {lowStockItems.slice(0, 6).map((item) => (
-                    <div key={item._id} className="flex items-center gap-4 rounded-xl border border-error/20 bg-error/10 p-3">
-                      <AlertTriangle className="text-error shrink-0" size={18} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-on-surface truncate">{item.name} low stock</p>
-                        <p className="text-[10px] text-error/80">Only {item.currentStock} {item.unit} remaining</p>
-                      </div>
-                    </div>
-                  ))}
+              {sortedInventory.length > 0 && (
+                <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+                  <p className="shrink-0 whitespace-nowrap text-xs text-on-surface-variant">
+                    Showing {(inventoryPage - 1) * inventoryPageSize + 1}-
+                    {Math.min(inventoryPage * inventoryPageSize, sortedInventory.length)} of {sortedInventory.length}
+                  </p>
 
-                  {lowStockItems.length === 0 && (
-                    <div className="md:col-span-2 xl:col-span-3 text-xs text-on-surface-variant text-center py-4 bg-primary/5 rounded-xl border border-dashed border-primary/20">
-                      All stock quantities are currently healthy.
-                    </div>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setInventoryPage((prev) => Math.max(1, prev - 1))}
+                      disabled={inventoryPage === 1}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      <ChevronLeft size={14} />
+                      Prev
+                    </button>
+                    <span className="rounded-lg bg-surface-container px-3 py-2 text-xs font-bold text-on-surface">
+                      Page {inventoryPage} / {inventoryTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setInventoryPage((prev) => Math.min(inventoryTotalPages, prev + 1))}
+                      disabled={inventoryPage === inventoryTotalPages}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      Next
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
                 </div>
-              </section>
+              )}
+
             </div>
           ) : tab === 'waste' ? (
             <div className="space-y-6">
@@ -672,8 +804,9 @@ export default function InventoryPage() {
                     setShowImportForm(false);
                     setShowAddForm(true);
                   }}
-                  className="rounded-full bg-primary px-4 py-2 text-[11px] font-black uppercase tracking-widest text-on-primary transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-colors"
                 >
+                  <Plus size={14} />
                   Add Item
                 </button>
                 <button
@@ -682,8 +815,9 @@ export default function InventoryPage() {
                     setShowAddForm(false);
                     setShowImportForm(true);
                   }}
-                  className="rounded-full border border-outline-variant bg-surface-container-low px-4 py-2 text-[11px] font-black uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface"
+                  className="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:text-on-surface"
                 >
+                  <Upload size={14} />
                   Import Excel
                 </button>
               </div>
@@ -698,7 +832,7 @@ export default function InventoryPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-on-surface-variant">Item / Ingredient Name</label>
+                        <label className="text-xs font-bold text-on-surface-variant">Item / Ingredient Name</label>
                         <input
                           type="text"
                           required
@@ -711,7 +845,7 @@ export default function InventoryPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase text-on-surface-variant">Category</label>
+                          <label className="text-xs font-bold text-on-surface-variant">Category</label>
                           <input
                             type="text"
                             required
@@ -722,7 +856,7 @@ export default function InventoryPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase text-on-surface-variant">Unit</label>
+                          <label className="text-xs font-bold text-on-surface-variant">Unit</label>
                           <input
                             type="text"
                             required
@@ -743,7 +877,7 @@ export default function InventoryPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase text-on-surface-variant">Current Stock Level</label>
+                          <label className="text-xs font-bold text-on-surface-variant">Current Stock Level</label>
                           <input
                             type="number"
                             min="0"
@@ -753,7 +887,7 @@ export default function InventoryPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase text-on-surface-variant">Best Before / Expiry</label>
+                          <label className="text-xs font-bold text-on-surface-variant">Best Before / Expiry</label>
                           <input
                             type="text"
                             placeholder="Optional"
@@ -798,7 +932,7 @@ export default function InventoryPage() {
                   <button
                     type="submit"
                     disabled={savingItem}
-                    className="bg-primary text-on-primary px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                    className="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-sm tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {savingItem ? 'Saving Item...' : inventoryForm.id ? 'Update Stock Record' : 'Save Stock Record'}
                   </button>
@@ -848,8 +982,9 @@ export default function InventoryPage() {
                     setShowImportForm(false);
                     setShowAddForm(true);
                   }}
-                  className="rounded-full border border-outline-variant bg-surface-container-low px-4 py-2 text-[11px] font-black uppercase tracking-widest text-on-surface-variant transition-colors hover:text-on-surface"
+                  className="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:text-on-surface"
                 >
+                  <Plus size={14} />
                   Add Item
                 </button>
                 <button
@@ -858,15 +993,15 @@ export default function InventoryPage() {
                     setShowAddForm(false);
                     setShowImportForm(true);
                   }}
-                  className="rounded-full bg-primary px-4 py-2 text-[11px] font-black uppercase tracking-widest text-on-primary transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-colors"
                 >
+                  <Upload size={14} />
                   Import Excel
                 </button>
               </div>
 
               <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-5 space-y-4">
                 <div className="flex items-center gap-2 text-primary">
-                  <FileSpreadsheet size={16} />
                   <p className="text-xs font-black uppercase tracking-wider text-on-surface">Excel Import</p>
                 </div>
                 <p className="text-sm leading-relaxed text-on-surface-variant">
@@ -902,7 +1037,7 @@ export default function InventoryPage() {
               <div>
                 <div className="flex items-center gap-3 text-secondary">
                   <Trash2 size={20} />
-                  <h3 className="text-xl font-bold text-on-surface">Log Damage / Waste</h3>
+                  <h3 className="text-xl font-bold text-on-surface">{wasteActionLabel}</h3>
                 </div>
                 <p className="mt-1 text-sm text-on-surface-variant">
                   Record stock deductions without leaving the inventory screen.
@@ -922,7 +1057,7 @@ export default function InventoryPage() {
             <div className="p-6">
               <form onSubmit={handleLogWaste} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-on-surface-variant">Select Item</label>
+                  <label className="text-xs font-bold text-on-surface-variant">Select Item</label>
                   <select
                     value={wasteItemId}
                     onChange={(e) => setWasteItemId(e.target.value)}
@@ -938,7 +1073,7 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-on-surface-variant">Amount to Deduct</label>
+                  <label className="text-xs font-bold text-on-surface-variant">Amount to Deduct</label>
                   <input
                     type="number"
                     step="0.1"
@@ -952,7 +1087,7 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-on-surface-variant">Deduction Reason</label>
+                  <label className="text-xs font-bold text-on-surface-variant">Deduction Reason</label>
                   <select
                     value={wasteReason}
                     onChange={(e) => setWasteReason(e.target.value)}
@@ -968,7 +1103,7 @@ export default function InventoryPage() {
                   <button
                     type="submit"
                     disabled={loggingWaste || !wasteItemId}
-                    className="bg-secondary text-on-secondary px-6 py-3 rounded-lg font-black text-xs uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="bg-secondary text-on-secondary px-6 py-3 rounded-lg font-bold text-sm tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loggingWaste && <Loader2 size={14} className="animate-spin" />}
                     Submit Log

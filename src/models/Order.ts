@@ -12,7 +12,7 @@ export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId;
   items: IOrderItem[];
   status: 'new' | 'preparing' | 'ready' | 'completed' | 'cancelled';
-  type: 'dine-in' | 'takeaway' | 'delivery' | 'quick-sale';
+  type: 'dine-in' | 'takeaway' | 'delivery' | 'walk-in' | 'quotation' | 'invoice' | 'quick-sale';
   tableNumber?: number;
   pricing?: {
     subtotal: number;
@@ -74,7 +74,7 @@ const OrderSchema: Schema = new Schema<IOrder>(
     type: {
       type: String,
       required: true,
-      enum: ['dine-in', 'takeaway', 'delivery', 'quick-sale'],
+      enum: ['dine-in', 'takeaway', 'delivery', 'walk-in', 'quotation', 'invoice', 'quick-sale'],
       default: 'quick-sale',
     },
     tableNumber: { type: Number },

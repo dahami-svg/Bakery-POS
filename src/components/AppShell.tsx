@@ -1,20 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { useLayout } from '@/context/LayoutContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useTenant } from '@/context/TenantContext';
-import { LogOut, Menu, Moon, Sun, User } from 'lucide-react';
+import { LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, User } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { sidebarOpen, setSidebarOpen } = useLayout();
   const { theme, toggleTheme } = useTheme();
   const { activeTenant } = useTenant();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isLoginPage = pathname === '/login' || pathname === '/setup-password';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setSidebarOpen(window.innerWidth >= 1280);
+  }, []);
 
   if (isLoginPage) {
     return <>{children}</>;
@@ -25,14 +31,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
+  const inventoryTitle = activeTenant?.enabledModules.includes('inventory')
+    ? 'Stock & Inventory'
+    : 'Inventory';
+  const kdsTitle = activeTenant?.type === 'hardware' ? 'Fulfillment Board' : 'Kitchen Queue';
+  const catalogTitle = activeTenant?.type === 'hardware' ? 'Item Catalog' : 'Product Manager';
+
   const currentPageTitle = (() => {
     if (pathname === '/') return 'Owner Analytics';
-    if (pathname === '/pos') return 'New Transaction';
-    if (pathname === '/kds') return 'Kitchen Queue';
-    if (pathname === '/inventory') {
-      return activeTenant?.type === 'hardware' ? 'Hardware Stock' : 'Bakery Logistics';
-    }
-    if (pathname === '/catalog') return 'Product Manager';
+    if (pathname === '/pos') return 'Sales Terminal';
+    if (pathname === '/kds') return kdsTitle;
+    if (pathname === '/inventory') return inventoryTitle;
+    if (pathname === '/catalog') return catalogTitle;
     if (pathname === '/super-admin') return 'Control Center';
     return 'Dashboard';
   })();
@@ -45,11 +55,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="h-full flex items-center justify-between gap-2 lg:gap-4">
             <div className="flex items-center gap-2 min-w-0">
               <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden size-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
-                aria-label="Open sidebar"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                className="size-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
+                aria-label={sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
               >
-                <Menu size={20} />
+                <span className="md:hidden">
+                  <Menu size={20} />
+                </span>
+                <span className="hidden md:inline xl:hidden">
+                  {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+                </span>
+                <span className="hidden xl:inline">
+                  {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+                </span>
               </button>
               <div className="min-w-0">
                 <h1 className="text-sm font-bold text-on-surface truncate">{currentPageTitle}</h1>
@@ -60,18 +78,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="relative inline-flex h-9 lg:h-10 w-[72px] lg:w-20 items-center rounded-full border border-outline-variant bg-surface-container px-1 transition-colors shrink-0 cursor-pointer"
+                className="relative inline-flex h-9 w-[72px] shrink-0 cursor-pointer items-center rounded-full border border-outline-variant bg-surface-container transition-colors lg:h-10 lg:w-20"
                 aria-label="Toggle theme"
                 title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 <span
-                  className={`absolute h-7 lg:h-8 w-7 lg:w-8 rounded-full bg-primary transition-transform ${
-                    theme === 'dark' ? 'translate-x-9 lg:translate-x-10' : 'translate-x-0'
+                  className={`absolute left-1 top-1 h-7 w-7 rounded-full bg-primary transition-transform lg:h-8 lg:w-8 ${
+                    theme === 'dark' ? 'translate-x-8 lg:translate-x-10' : 'translate-x-0'
                   }`}
                 />
-                <span className="relative z-10 flex w-full items-center justify-between px-1 text-on-surface-variant">
-                  <Sun size={13} className={theme === 'dark' ? 'opacity-50' : 'text-on-primary'} />
-                  <Moon size={13} className={theme === 'dark' ? 'text-on-primary' : 'opacity-50'} />
+                <span className="relative z-10 grid h-full w-full grid-cols-2 text-on-surface-variant">
+                  <span className="flex h-full items-center justify-center">
+                    <Sun size={13} className={theme === 'dark' ? 'opacity-50' : 'text-on-primary'} />
+                  </span>
+                  <span className="flex h-full items-center justify-center">
+                    <Moon size={13} className={theme === 'dark' ? 'text-on-primary' : 'opacity-50'} />
+                  </span>
                 </span>
               </button>
 

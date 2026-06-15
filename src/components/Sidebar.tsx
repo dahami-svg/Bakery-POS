@@ -30,6 +30,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const pathname = usePathname();
   const { tenants, activeTenant, loading, selectTenant } = useTenant();
   const { user } = useAuth();
+  const isCollapsed = !isOpen;
 
   const isSuperAdmin = user?.role === 'super_admin';
   const canManageCatalog = user?.role === 'super_admin' || user?.role === 'tenant_admin';
@@ -61,10 +62,21 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     activeTenant?.enabledModules.includes(item.module as any)
   );
 
+  const handleNavClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      onClose();
+    }
+  };
+
   const sidebarContent = (
     <>
-      <div className="h-16 px-5 border-b border-outline-variant bg-surface-container-lowest/40 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div
+        className={cn(
+          "h-16 border-b border-outline-variant bg-surface-container-lowest/40 flex items-center justify-between transition-all",
+          isCollapsed ? "px-3 md:px-4" : "px-5"
+        )}
+      >
+        <div className={cn("flex min-w-0 flex-1 items-center", isCollapsed ? "justify-center" : "gap-3")}>
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary shrink-0">
             {loading ? (
               <div className="size-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />
@@ -72,23 +84,27 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <HeaderIcon size={22} />
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-on-surface text-sm font-black leading-tight truncate">{headerTitle}</h1>
-            <p className="text-on-surface-variant text-[10px] uppercase font-bold tracking-widest mt-0.5">
-              {headerSubtitle}
-            </p>
-          </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <h1 className="text-on-surface text-sm font-black leading-tight truncate">{headerTitle}</h1>
+            </div>
+          )}
         </div>
         <button
           onClick={onClose}
-          className="lg:hidden size-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
+          className="md:hidden size-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors cursor-pointer"
         >
           <X size={18} />
         </button>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
-        {!loading && isSuperAdmin && tenants.length > 0 && (
+      <nav
+        className={cn(
+          "flex-1 overflow-y-auto no-scrollbar transition-all",
+          isCollapsed ? "px-2 py-4 space-y-2" : "px-3 py-4 space-y-1"
+        )}
+      >
+        {!loading && isSuperAdmin && tenants.length > 0 && !isCollapsed && (
           <div className="px-3 pb-4 mb-4 border-b border-outline-variant/60">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
               Active Tenant
@@ -119,16 +135,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onClose}
+                onClick={handleNavClick}
+                title={isCollapsed ? item.label : undefined}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+                  'flex items-center rounded-lg transition-colors cursor-pointer',
+                  isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2',
                   isActive
                     ? 'bg-secondary-container text-on-secondary-container'
                     : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
                 )}
               >
                 <item.icon size={20} />
-                <p className="text-sm font-semibold">{item.label}</p>
+                {!isCollapsed && <p className="text-sm font-semibold">{item.label}</p>}
               </Link>
             );
           })}
@@ -136,39 +154,43 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         {!loading && activeTenant?.enabledModules.includes('pos') && canManageCatalog && (
           <Link
             href="/catalog"
-            onClick={onClose}
+            onClick={handleNavClick}
+            title={isCollapsed ? 'Products' : undefined}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer',
+              'flex items-center rounded-lg transition-colors cursor-pointer',
+              isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2',
               pathname === '/catalog'
                 ? 'bg-secondary-container text-on-secondary-container'
                 : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
             )}
           >
             <Package size={20} />
-            <p className="text-sm font-semibold">Products</p>
+            {!isCollapsed && <p className="text-sm font-semibold">Products</p>}
           </Link>
         )}
 
-        {!loading && filteredNavItems.length === 0 && (
+        {!loading && filteredNavItems.length === 0 && !isCollapsed && (
           <div className="p-4 text-center text-on-surface-variant text-xs opacity-50">
             No modules enabled.
           </div>
         )}
 
-        <div className="mt-6 pt-6 border-t border-outline-variant px-3 space-y-1">
+        <div className={cn("mt-6 border-t border-outline-variant space-y-1", isCollapsed ? "px-0 pt-4" : "px-3 pt-6")}>
           {isSuperAdmin && (
             <Link
               href="/super-admin"
-              onClick={onClose}
+              onClick={handleNavClick}
+              title={isCollapsed ? 'Control Center' : undefined}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60',
+                'flex items-center rounded-lg transition-all cursor-pointer border border-dashed border-secondary/20 hover:border-secondary/60',
+                isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2',
                 pathname === '/super-admin'
                   ? 'bg-secondary-container text-on-secondary-container border-solid border-secondary'
                   : 'text-on-surface-variant hover:bg-surface-variant hover:text-secondary'
               )}
             >
               <ShieldCheck size={20} className="text-secondary" />
-              <p className="text-sm font-bold">Control Center</p>
+              {!isCollapsed && <p className="text-sm font-bold">Control Center</p>}
             </Link>
           )}
         </div>
@@ -179,14 +201,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onClose} />
       )}
       <aside
         className={cn(
-          "bg-surface-container-low border-r border-outline-variant flex flex-col shrink-0 transition-transform duration-300 ease-in-out",
+          "bg-surface-container-low border-r border-outline-variant flex flex-col shrink-0 transition-[width,transform] duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 w-64",
-          "lg:relative lg:z-auto lg:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          "md:relative md:z-auto md:translate-x-0",
+          isOpen ? "translate-x-0 md:w-64" : "-translate-x-full md:translate-x-0 md:w-20"
         )}
       >
         {sidebarContent}
