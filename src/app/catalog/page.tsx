@@ -12,6 +12,8 @@ type ProductFormState = {
   name: string;
   category: string;
   price: string;
+  sku: string;
+  barcode: string;
   unit: string;
   image: string;
 };
@@ -31,6 +33,8 @@ const emptyProductForm: ProductFormState = {
   name: '',
   category: '',
   price: '',
+  sku: '',
+  barcode: '',
   unit: '',
   image: '',
 };
@@ -162,6 +166,8 @@ export default function CatalogPage() {
       name: product.name,
       category: product.category,
       price: String(product.price),
+      sku: product.sku || '',
+      barcode: product.barcode || '',
       unit: product.unit,
       image: product.image,
     });
@@ -223,6 +229,8 @@ export default function CatalogPage() {
         unit: productForm.unit.trim(),
         image: productForm.image.trim(),
         price: Number(productForm.price),
+        sku: productForm.sku.trim(),
+        barcode: productForm.barcode.trim(),
       };
 
       const res = await fetch('/api/products', {
@@ -446,7 +454,9 @@ export default function CatalogPage() {
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
     product.category.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-    product.unit.toLowerCase().includes(productSearchQuery.toLowerCase())
+    product.unit.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+    String(product.sku || '').toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+    String(product.barcode || '').toLowerCase().includes(productSearchQuery.toLowerCase())
   );
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -514,7 +524,7 @@ export default function CatalogPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search name, SKU, or barcode..."
                   value={productSearchQuery}
                   onChange={(e) => setProductSearchQuery(e.target.value)}
                   className="h-10 w-full sm:w-64 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
@@ -578,6 +588,14 @@ export default function CatalogPage() {
                     <p className="text-[10px] font-bold tracking-wider text-on-surface-variant">
                       {product.category} · {product.unit}
                     </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-full border border-outline-variant bg-surface px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                        SKU {product.sku || 'Auto'}
+                      </span>
+                      <span className="rounded-full border border-outline-variant bg-surface px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                        {product.barcode || 'Barcode pending'}
+                      </span>
+                    </div>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                       {product.activeDiscount && Number(product.effectivePrice) < Number(product.price) ? (
                         <>
@@ -797,7 +815,7 @@ export default function CatalogPage() {
                     <p className="text-xs font-black uppercase tracking-wider text-on-surface">Excel Import</p>
                   </div>
                   <p className="text-sm leading-relaxed text-on-surface-variant">
-                    First sheet columns: <strong>name</strong>, <strong>category</strong>, <strong>price</strong>, <strong>unit</strong>, optional <strong>image</strong>.
+                    First sheet columns: <strong>name</strong>, <strong>category</strong>, <strong>price</strong>, <strong>unit</strong>, optional <strong>sku</strong>, optional <strong>barcode</strong>, optional <strong>image</strong>.
                   </p>
                   <input
                     ref={importInputRef}
@@ -855,6 +873,29 @@ export default function CatalogPage() {
                               value={productForm.unit}
                               onChange={(e) => updateProductForm('unit', e.target.value)}
                               placeholder="each"
+                              className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-on-surface-variant">SKU</label>
+                            <input
+                              type="text"
+                              value={productForm.sku}
+                              onChange={(e) => updateProductForm('sku', e.target.value)}
+                              placeholder="Leave blank to auto-generate"
+                              className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-on-surface-variant">Barcode</label>
+                            <input
+                              type="text"
+                              value={productForm.barcode}
+                              onChange={(e) => updateProductForm('barcode', e.target.value)}
+                              placeholder="Leave blank to auto-generate"
                               className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
                             />
                           </div>
@@ -928,6 +969,12 @@ export default function CatalogPage() {
                           </p>
                           <p className="text-sm font-black text-primary">
                             Rs. {productForm.price !== '' ? Number(productForm.price || 0).toFixed(2) : '0.00'}
+                          </p>
+                          <p className="text-[10px] font-bold tracking-wide text-on-surface-variant">
+                            SKU: {productForm.sku.trim() || 'Auto-generated'}
+                          </p>
+                          <p className="text-[10px] font-bold tracking-wide text-on-surface-variant break-all">
+                            Barcode: {productForm.barcode.trim() || 'Auto-generated'}
                           </p>
                         </div>
                       </div>

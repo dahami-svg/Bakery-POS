@@ -2,6 +2,8 @@ export type InventoryImportRow = {
   name: string;
   category: string;
   currentStock: number;
+  sku?: string;
+  barcode?: string;
   unit: string;
   bestBefore: string;
 };
@@ -11,6 +13,8 @@ export type ProductImportRow = {
   category: string;
   price: number;
   discountedPrice: number | null;
+  sku?: string;
+  barcode?: string;
   unit: string;
   image: string;
 };
@@ -53,6 +57,8 @@ export function mapInventoryImportRows(rows: Record<string, unknown>[]) {
     const name = asTrimmedString(getCellValue(row, ['name', 'itemname', 'ingredientname', 'item']));
     const category = asTrimmedString(getCellValue(row, ['category', 'group']));
     const currentStock = asNumber(getCellValue(row, ['currentstock', 'stock', 'qty', 'quantity']));
+    const sku = asTrimmedString(getCellValue(row, ['sku', 'itemcode', 'stockcode']));
+    const barcode = asTrimmedString(getCellValue(row, ['barcode', 'barcodenumber', 'scanCode']));
     const unit = asTrimmedString(getCellValue(row, ['unit', 'uom']));
     const bestBefore = asTrimmedString(getCellValue(row, ['bestbefore', 'expiry', 'expiration', 'expirydate'])) || 'N/A';
 
@@ -68,6 +74,8 @@ export function mapInventoryImportRows(rows: Record<string, unknown>[]) {
       name,
       category,
       currentStock,
+      sku: sku || undefined,
+      barcode: barcode || undefined,
       unit,
       bestBefore,
     });
@@ -88,6 +96,8 @@ export function mapProductImportRows(rows: Record<string, unknown>[]) {
       rawDiscountedPrice === undefined || rawDiscountedPrice === ''
         ? null
         : asNumber(rawDiscountedPrice);
+    const sku = asTrimmedString(getCellValue(row, ['sku', 'productcode', 'itemcode']));
+    const barcode = asTrimmedString(getCellValue(row, ['barcode', 'barcodenumber', 'scancode']));
     const unit = asTrimmedString(getCellValue(row, ['unit', 'uom']));
     const image = asTrimmedString(getCellValue(row, ['image', 'imageurl', 'photo', 'photourl'])) || DEFAULT_PRODUCT_IMAGE;
 
@@ -104,6 +114,8 @@ export function mapProductImportRows(rows: Record<string, unknown>[]) {
       category,
       price,
       discountedPrice: discountedPrice === null || Number.isNaN(discountedPrice) ? null : discountedPrice,
+      sku: sku || undefined,
+      barcode: barcode || undefined,
       unit,
       image,
     });

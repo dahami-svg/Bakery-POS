@@ -45,6 +45,40 @@ const getCategoryIcon = (categoryName: string) => {
 
 const feeTypeOptions = ['Tax', 'Handling', 'Shipping', 'Delivery', 'Packing', 'Service Charge', 'Discount'];
 
+type ReceiptOrderItemProduct = {
+  _id?: string;
+  name?: string;
+  price?: number;
+  effectivePrice?: number;
+  discountedPrice?: number;
+};
+
+type ReceiptOrder = {
+  _id: string;
+  orderNumber?: string;
+  barcode?: string;
+  barcodeType?: 'CODE128' | 'EAN13' | 'QR';
+  createdAt?: string;
+  type?: PosOrderType;
+  status?: string;
+  tableNumber?: number;
+  total: number;
+  pricing?: {
+    subtotal?: number;
+    adjustments?: {
+      label: string;
+      mode: 'fixed' | 'percentage';
+      value: number;
+      amount: number;
+    }[];
+  };
+  items: {
+    quantity: number;
+    note?: string;
+    productId?: ReceiptOrderItemProduct | string;
+  }[];
+};
+
 const getProductSellingPrice = (product: any) => {
   const effectivePrice = Number(product?.effectivePrice);
   const basePrice = Number(product?.price || 0);
@@ -65,6 +99,340 @@ const getProductSellingPrice = (product: any) => {
   }
 
   return basePrice;
+};
+
+const formatMoney = (value: number) => `Rs. ${Number(value || 0).toFixed(2)}`;
+
+const escapeReceiptHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const formatReceiptDate = (value?: string) => {
+  if (!value) return new Date().toLocaleString();
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleString();
+};
+
+const buildReceiptMarkup = (order: ReceiptOrder, tenantName: string) => {
+  const subtotal = Number(order.pricing?.subtotal || 0);
+  const adjustments = Array.isArray(order.pricing?.adjustments) ? order.pricing?.adjustments : [];
+  const orderLabel = getPosOrderTypeLabel(order.type || 'quick-sale');
+
+  const itemsMarkup = order.items.map((item) => {
+    const product =
+      item.productId && typeof item.productId === 'object'
+        ? item.productId
+        : undefined;
+    const unitPrice = getProductSellingPrice(product);
+    const lineTotal = unitPrice * Number(item.quantity || 0);
+    const noteMarkup = item.note
+      ? `<div class="item-note">${escapeReceiptHtml(item.note)}</div>`
+      : '';
+
+    return `
+      <div class="item-row">
+        <div class="item-name">
+          ${escapeReceiptHtml(product?.name || 'Product')}
+          ${noteMarkup}
+        </div>
+        <div class="item-price">${escapeReceiptHtml(formatMoney(lineTotal))}</div>
+      </div>
+    `;
+  }).join('');
+
+  const adjustmentsMarkup = adjustments.length
+    ? adjustments.map((adjustment) => `
+        <div class="summary-row">
+          <span>${escapeReceiptHtml(adjustment.label)}</span>
+          <span>${escapeReceiptHtml(formatMoney(Number(adjustment.amount || 0)))}</span>
+        </div>
+      `).join('')
+    : `
+        <div class="summary-row">
+          <span>Tax</span>
+          <span>${escapeReceiptHtml(formatMoney(0))}</span>
+        </div>
+      `;
+
+  const barcodeText = `#${String(order.barcode || order._id).replace(/[^a-zA-Z0-9]/g, '').slice(-22).padEnd(22, '0')}#`;
+  const orderReference = order.orderNumber || order._id;
+
+  return `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Receipt ${escapeReceiptHtml(orderReference)}</title>
+      <style>
+        :root {
+          color-scheme: light;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          background: #ececec;
+          font-family: Arial, Helvetica, sans-serif;
+          color: #202020;
+          padding: 20px;
+        }
+
+        .receipt {
+          width: 290px;
+          margin: 0 auto;
+          background: #fff;
+          padding: 18px 18px 28px;
+          position: relative;
+        }
+
+        .receipt::before,
+        .receipt::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          width: 100%;
+          height: 10px;
+          background:
+            radial-gradient(circle at 5px 10px, transparent 5px, #fff 5px);
+          background-size: 10px 10px;
+        }
+
+        .receipt::before {
+          top: -10px;
+          transform: rotate(180deg);
+        }
+
+        .receipt::after {
+          bottom: -10px;
+        }
+
+        .title {
+          text-align: center;
+          font-size: 18px;
+          font-weight: 700;
+          margin: 8px 0 14px;
+          letter-spacing: 0.02em;
+        }
+
+        .divider {
+          border-top: 1px solid #d8d8d8;
+          margin: 10px 0;
+        }
+
+        .meta-grid {
+          display: grid;
+          grid-template-columns: 92px 1fr;
+          gap: 6px 12px;
+          font-size: 12px;
+          line-height: 1.3;
+        }
+
+        .meta-grid .label {
+          font-weight: 700;
+        }
+
+        .section-title {
+          font-size: 12px;
+          font-weight: 700;
+          margin: 0 0 10px;
+        }
+
+        .item-row,
+        .summary-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 12px;
+          line-height: 1.35;
+          margin-bottom: 7px;
+        }
+
+        .item-name {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .item-price {
+          white-space: nowrap;
+        }
+
+        .item-note {
+          font-size: 10px;
+          color: #696969;
+          margin-top: 2px;
+        }
+
+        .summary {
+          margin-top: 10px;
+        }
+
+        .total-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 18px;
+          font-weight: 700;
+          margin-top: 8px;
+        }
+
+        .barcode {
+          margin: 14px 0 8px;
+          text-align: center;
+        }
+
+        .barcode-bars {
+          width: 190px;
+          height: 28px;
+          margin: 0 auto;
+          background:
+            linear-gradient(
+              90deg,
+              #000 0 2px,
+              transparent 2px 4px,
+              #000 4px 5px,
+              transparent 5px 8px,
+              #000 8px 12px,
+              transparent 12px 14px,
+              #000 14px 15px,
+              transparent 15px 18px,
+              #000 18px 21px,
+              transparent 21px 23px,
+              #000 23px 27px,
+              transparent 27px 30px,
+              #000 30px 31px,
+              transparent 31px 34px,
+              #000 34px 36px,
+              transparent 36px 38px,
+              #000 38px 42px,
+              transparent 42px 44px,
+              #000 44px 46px,
+              transparent 46px 49px,
+              #000 49px 52px,
+              transparent 52px 54px,
+              #000 54px 55px,
+              transparent 55px 58px,
+              #000 58px 62px,
+              transparent 62px 64px,
+              #000 64px 66px,
+              transparent 66px 70px,
+              #000 70px 73px,
+              transparent 73px 76px,
+              #000 76px 78px,
+              transparent 78px 82px,
+              #000 82px 84px,
+              transparent 84px 87px,
+              #000 87px 91px,
+              transparent 91px 93px,
+              #000 93px 95px,
+              transparent 95px 100%
+            );
+        }
+
+        .barcode-text {
+          font-size: 9px;
+          color: #666;
+          margin-top: 5px;
+          letter-spacing: 0.03em;
+        }
+
+        .thank-you {
+          text-align: center;
+          font-size: 11px;
+          margin-top: 16px;
+          color: #555;
+        }
+
+        @media print {
+          body {
+            background: #fff;
+            padding: 0;
+          }
+
+          .receipt {
+            width: 100%;
+            max-width: 290px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <div class="title">CASH RECEIPT</div>
+        <div class="divider"></div>
+
+        <div class="meta-grid">
+          <div class="label">Shop Name:</div>
+          <div>${escapeReceiptHtml(tenantName)}</div>
+          <div class="label">Date:</div>
+          <div>${escapeReceiptHtml(formatReceiptDate(order.createdAt))}</div>
+          <div class="label">Order Type:</div>
+          <div>${escapeReceiptHtml(orderLabel)}${order.tableNumber ? ` - Table ${order.tableNumber}` : ''}</div>
+          <div class="label">Order ID:</div>
+          <div>${escapeReceiptHtml(orderReference)}</div>
+          <div class="label">Order Barcode:</div>
+          <div>${escapeReceiptHtml(order.barcode || 'Pending')}</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-title">Description</div>
+
+        ${itemsMarkup}
+
+        <div class="divider"></div>
+
+        <div class="summary">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>${escapeReceiptHtml(formatMoney(subtotal))}</span>
+          </div>
+          ${adjustmentsMarkup}
+          <div class="total-row">
+            <span>Total</span>
+            <span>${escapeReceiptHtml(formatMoney(Number(order.total || 0)))}</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="barcode">
+          <div class="barcode-bars"></div>
+          <div class="barcode-text">${escapeReceiptHtml(barcodeText)}</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="thank-you">Thank you for shopping</div>
+      </div>
+      <script>
+        window.addEventListener('load', () => {
+          window.print();
+        });
+      </script>
+    </body>
+  </html>`;
+};
+
+const printReceipt = (order: ReceiptOrder, tenantName: string) => {
+  if (typeof window === 'undefined') return false;
+
+  const receiptWindow = window.open('', '_blank', 'width=420,height=900');
+  if (!receiptWindow) return false;
+
+  receiptWindow.document.open();
+  receiptWindow.document.write(buildReceiptMarkup(order, tenantName));
+  receiptWindow.document.close();
+
+  return true;
 };
 
 const orderTypeContent: Record<PosOrderType, {
@@ -149,14 +517,26 @@ export default function PosPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState('');
+  const [lastCompletedOrder, setLastCompletedOrder] = useState<ReceiptOrder | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [savingFeePreset, setSavingFeePreset] = useState(false);
+  const [deletingFeePreset, setDeletingFeePreset] = useState(false);
   const [selectedFeePresetIds, setSelectedFeePresetIds] = useState<string[]>([]);
   const [editingFeePresetId, setEditingFeePresetId] = useState<string | null>(null);
   const [newFeeLabel, setNewFeeLabel] = useState('Tax');
   const [newFeeMode, setNewFeeMode] = useState<'fixed' | 'percentage'>('fixed');
   const [newFeeAmount, setNewFeeAmount] = useState('0');
+
+  useEffect(() => {
+    if (!checkoutSuccess) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCheckoutSuccess(false);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [checkoutSuccess]);
 
   const hasKitchenFlow = activeTenant?.enabledModules.includes('kds') ?? false;
   const terminalTitle = hasKitchenFlow ? 'Products' : 'Items';
@@ -311,8 +691,28 @@ export default function PosPage() {
 
   const filteredProducts = products.filter(p => 
     (selectedCategory === '' || p.category === selectedCategory) && 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(p.sku || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(p.barcode || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
+
+  const tryAddProductFromScan = () => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return;
+
+    const exactMatch = products.find((product) => {
+      const sku = String(product.sku || '').toLowerCase();
+      const barcode = String(product.barcode || '').toLowerCase();
+      return sku === normalizedQuery || barcode === normalizedQuery;
+    });
+
+    if (!exactMatch) return;
+
+    addToCart(exactMatch);
+    setSearchQuery('');
+  };
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -353,12 +753,18 @@ export default function PosPage() {
 
       const data = await res.json();
         if (data.success) {
+          const createdOrder = data.data as ReceiptOrder;
           setSuccessOrderId(data.data._id);
+          setLastCompletedOrder(createdOrder);
           setCheckoutSuccess(true);
           setCart([]);
           setTableNumber('');
           setCartOpen(false);
           setSelectedFeePresetIds([]);
+          const opened = printReceipt(createdOrder, activeTenant.name);
+          if (!opened) {
+            alert('Order created successfully, but the receipt popup was blocked. Use Print Receipt on the success screen.');
+          }
         } else {
         alert('Checkout failed: ' + data.message);
       }
@@ -449,6 +855,44 @@ export default function PosPage() {
       alert('Failed to save fee preset.');
     } finally {
       setSavingFeePreset(false);
+    }
+  };
+
+  const deleteFeePreset = async () => {
+    if (!activeTenant?._id || !editingFeePresetId) return;
+
+    setDeletingFeePreset(true);
+    try {
+      const nextFees = (activeTenant.feePresets || [])
+        .filter((fee) => fee._id !== editingFeePresetId)
+        .map((fee) => ({
+          label: fee.label,
+          mode: fee.mode,
+          value: fee.value,
+          amount: fee.amount,
+        }));
+
+      const res = await fetch(`/api/tenants/${activeTenant._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feePresets: nextFees,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message || 'Failed to delete fee preset.');
+        return;
+      }
+
+      setSelectedFeePresetIds((prev) => prev.filter((id) => id !== editingFeePresetId));
+      await refreshTenants();
+      resetFeeDialog();
+    } catch {
+      alert('Failed to delete fee preset.');
+    } finally {
+      setDeletingFeePreset(false);
     }
   };
 
@@ -723,10 +1167,16 @@ export default function PosPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                 <input 
                   type="text"
-                  placeholder="Search items..." 
+                  placeholder="Search or scan barcode..." 
                   className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      tryAddProductFromScan();
+                    }
+                  }}
                 />
               </div>
               <button
@@ -744,10 +1194,16 @@ export default function PosPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                 <input 
                   type="text"
-                  placeholder="Search items..." 
+                  placeholder="Search or scan barcode..." 
                   className="h-10 w-full rounded-lg border-none bg-surface-container-highest pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      tryAddProductFromScan();
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -790,76 +1246,111 @@ export default function PosPage() {
         )}
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 scrollbar-hide">
-          {checkoutSuccess ? (
-            <div className="flex flex-col items-center justify-center py-16 lg:py-20 text-center bg-surface-container/30 border border-dashed border-outline-variant rounded-2xl max-w-xl mx-auto my-6 lg:my-10 px-6">
-              <CheckCircle size={56} className="text-primary mb-4" />
-              <h2 className="text-xl lg:text-2xl font-black text-on-surface">{successTitle}</h2>
-              <p className="text-on-surface-variant text-sm mt-2 max-w-sm">
-                {successDescription}
-              </p>
-              <div className="bg-surface-container-high/60 px-4 py-2.5 rounded-lg text-xs font-mono text-on-surface mt-4 break-all max-w-full">
-                ID: {successOrderId}
-              </div>
-              <button 
-                onClick={() => setCheckoutSuccess(false)}
-                className="mt-8 px-6 py-3 bg-primary text-on-primary text-xs font-black uppercase tracking-wider rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-              >
-                {nextOrderLabel}
-              </button>
+          <div className={cn(
+            "grid grid-cols-2 gap-3 sm:gap-4",
+            compactTabletGrid ? "sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5" : "sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5"
+          )}>
+            {filteredProducts.map(product => {
+              const sellingPrice = getProductSellingPrice(product);
+              const hasDiscount = sellingPrice < Number(product.price || 0);
+
+              return (
+                <button 
+                  key={product._id}
+                  onClick={() => addToCart(product)}
+                  className="group flex flex-col items-start gap-1.5 rounded-xl bg-surface-container p-2 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
+                >
+                  <div className="h-24 sm:h-28 w-full overflow-hidden rounded-lg bg-surface-variant">
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="flex-1 w-full min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
+                    <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-wide line-clamp-1">
+                      {product.sku || product.barcode || product.category}
+                    </p>
+                    <div className="mt-0 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                        {hasDiscount && (
+                          <span className="text-[10px] font-bold text-on-surface-variant line-through">
+                            Rs. {Number(product.price).toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-xs font-black text-primary">Rs. {sellingPrice.toFixed(2)}</span>
+                      </div>
+                      <span className="text-[9px] text-on-surface-variant font-bold uppercase">{product.unit}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-20 text-on-surface-variant opacity-40">
+              <HelpCircle size={48} className="mx-auto mb-4" strokeWidth={1} />
+              <p className="text-sm font-bold">No products found in this category.</p>
             </div>
-          ) : (
-            <>
-              <div className={cn(
-                "grid grid-cols-2 gap-3 sm:gap-4",
-                compactTabletGrid ? "sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5" : "sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5"
-              )}>
-                {filteredProducts.map(product => {
-                  const sellingPrice = getProductSellingPrice(product);
-                  const hasDiscount = sellingPrice < Number(product.price || 0);
-
-                  return (
-                    <button 
-                      key={product._id}
-                      onClick={() => addToCart(product)}
-                      className="group flex flex-col items-start gap-1.5 rounded-xl bg-surface-container p-2 text-left transition-all hover:bg-surface-container-high active:scale-95 ring-1 ring-outline-variant/20 hover:ring-primary/40 cursor-pointer"
-                    >
-                      <div className="h-24 sm:h-28 w-full overflow-hidden rounded-lg bg-surface-variant">
-                        <img 
-                          src={product.image} 
-                          alt={product.name} 
-                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                      <div className="flex-1 w-full min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-on-surface line-clamp-1">{product.name}</p>
-                        <div className="mt-0 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                            {hasDiscount && (
-                              <span className="text-[10px] font-bold text-on-surface-variant line-through">
-                                Rs. {Number(product.price).toFixed(2)}
-                              </span>
-                            )}
-                            <span className="text-xs font-black text-primary">Rs. {sellingPrice.toFixed(2)}</span>
-                          </div>
-                          <span className="text-[9px] text-on-surface-variant font-bold uppercase">{product.unit}</span>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {filteredProducts.length === 0 && (
-                <div className="text-center py-20 text-on-surface-variant opacity-40">
-                  <HelpCircle size={48} className="mx-auto mb-4" strokeWidth={1} />
-                  <p className="text-sm font-bold">No products found in this category.</p>
-                </div>
-              )}
-            </>
           )}
         </div>
       </main>
+
+      {checkoutSuccess && (
+        <div className="pointer-events-none fixed right-4 top-4 z-50 w-[min(92vw,380px)]">
+          <div className="pointer-events-auto rounded-2xl border border-outline-variant bg-surface-container shadow-2xl ring-1 ring-primary/10">
+            <div className="flex items-start gap-3 p-4">
+              <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+                <CheckCircle size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-on-surface">{successTitle}</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">{successDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutSuccess(false)}
+                    className="rounded-lg border border-outline-variant p-1.5 text-on-surface-variant hover:bg-surface hover:text-on-surface"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div className="mt-3 rounded-xl bg-surface px-3 py-2 text-[11px] font-mono text-on-surface break-all">
+                  ID: {successOrderId}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      if (lastCompletedOrder) {
+                        const opened = printReceipt(lastCompletedOrder, activeTenant.name);
+                        if (!opened) {
+                          alert('Please allow popups to print the receipt.');
+                        }
+                      }
+                    }}
+                    className="rounded-xl border border-outline-variant bg-surface px-3 py-2 text-[11px] font-black text-on-surface hover:bg-surface-container-high active:scale-95 transition-all cursor-pointer"
+                  >
+                    Print Receipt
+                  </button>
+                  <button 
+                    onClick={() => setCheckoutSuccess(false)}
+                    className="rounded-xl bg-primary px-3 py-2 text-[11px] font-black text-on-primary hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                  >
+                    {nextOrderLabel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Desktop cart sidebar */}
       <aside className="hidden lg:flex w-96 bg-surface-container-low border-l border-outline-variant flex-col shrink-0">
@@ -917,7 +1408,7 @@ export default function PosPage() {
 
             <div className="space-y-4 p-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-on-surface-variant">Fee Name</label>
+                <label className="text-xs font-bold text-on-surface-variant">Fee Name</label>
                 <select
                   value={newFeeLabel}
                   onChange={(e) => setNewFeeLabel(e.target.value)}
@@ -932,7 +1423,7 @@ export default function PosPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-on-surface-variant">Value Type</label>
+                <label className="text-xs font-bold text-on-surface-variant">Value Type</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -962,7 +1453,7 @@ export default function PosPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-on-surface-variant">
+                <label className="text-xs font-bold text-on-surface-variant">
                   {newFeeMode === 'percentage' ? 'Percentage' : 'Amount'}
                 </label>
                 <input
@@ -979,14 +1470,24 @@ export default function PosPage() {
                 <button
                   type="button"
                   onClick={saveFeePreset}
-                  disabled={savingFeePreset}
-                  className="bg-primary text-on-primary px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  disabled={savingFeePreset || deletingFeePreset}
+                  className="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-sm tracking-widest hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {savingFeePreset ? 'Saving...' : editingFeePresetId ? 'Update Fee' : 'Save Fee'}
                 </button>
+                {editingFeePresetId && (
+                  <button
+                    type="button"
+                    onClick={deleteFeePreset}
+                    disabled={savingFeePreset || deletingFeePreset}
+                    className="px-5 py-3 rounded-xl border border-error/40 text-xs font-bold text-error hover:bg-error/10 disabled:opacity-50"
+                  >
+                    {deletingFeePreset ? 'Removing...' : 'Remove Fee'}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => !savingFeePreset && resetFeeDialog()}
+                  onClick={() => !savingFeePreset && !deletingFeePreset && resetFeeDialog()}
                   className="px-5 py-3 rounded-xl border border-outline-variant text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                 >
                   Cancel

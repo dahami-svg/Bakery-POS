@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import InventoryItem from '@/models/InventoryItem';
+import { resolveEntityCodes } from '@/lib/barcodes';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'No inventory rows were provided.' }, { status: 400 });
     }
 
-    const docs = rows.map((row: any, index: number) => {
+    const docs = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
       const name = String(row.name || '').trim();
       const category = String(row.category || '').trim();
       const unit = String(row.unit || '').trim();
@@ -29,15 +33,23 @@ export async function POST(req: NextRequest) {
         throw new Error(`Inventory import row ${index + 1} is invalid.`);
       }
 
-      return {
+      docs.push({
         tenantId,
         name,
         category,
         unit,
         bestBefore,
         currentStock,
-      };
-    });
+        ...(await resolveEntityCodes({
+          model: InventoryItem,
+          tenantId,
+          name,
+          prefix: 'INV',
+          sku: row.sku,
+          barcode: row.barcode,
+        })),
+      });
+    }
 
     const inserted = await InventoryItem.insertMany(docs);
 
@@ -47,8 +59,13 @@ export async function POST(req: NextRequest) {
       data: inserted,
     });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to import inventory items.', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `Import failed because a ${duplicateField} is already used in this shop.` : 'Failed to import inventory items.',
+        error: error.message,
+      },
       { status: 500 }
     );
   }

@@ -39,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const currentPageTitle = (() => {
     if (pathname === '/') return 'Owner Analytics';
+    if (pathname === '/orders') return 'All Orders';
     if (pathname === '/pos') return 'Sales Terminal';
     if (pathname === '/kds') return kdsTitle;
     if (pathname === '/inventory') return inventoryTitle;

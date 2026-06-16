@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Product from '@/models/Product';
+import { resolveEntityCodes } from '@/lib/barcodes';
 import { DEFAULT_PRODUCT_IMAGE } from '@/lib/excel-import';
 
 export async function POST(req: NextRequest) {
@@ -19,7 +20,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'No product rows were provided.' }, { status: 400 });
     }
 
-    const docs = rows.map((row: any, index: number) => {
+    const docs = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
       const name = String(row.name || '').trim();
       const category = String(row.category || '').trim();
       const unit = String(row.unit || '').trim();
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
         throw new Error(`Product import row ${index + 1} is invalid.`);
       }
 
-      return {
+      docs.push({
         tenantId,
         name,
         category,
@@ -42,8 +46,16 @@ export async function POST(req: NextRequest) {
         image,
         price,
         discountedPrice: discountedPrice !== null && Number.isNaN(discountedPrice) ? null : discountedPrice,
-      };
-    });
+        ...(await resolveEntityCodes({
+          model: Product,
+          tenantId,
+          name,
+          prefix: 'PRD',
+          sku: row.sku,
+          barcode: row.barcode,
+        })),
+      });
+    }
 
     const inserted = await Product.insertMany(docs);
 
@@ -53,8 +65,13 @@ export async function POST(req: NextRequest) {
       data: inserted,
     });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to import products.', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `Import failed because a ${duplicateField} is already used in this shop.` : 'Failed to import products.',
+        error: error.message,
+      },
       { status: 500 }
     );
   }

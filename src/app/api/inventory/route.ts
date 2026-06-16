@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import InventoryItem from '@/models/InventoryItem';
+import { resolveEntityCodes } from '@/lib/barcodes';
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,14 +43,27 @@ export async function POST(req: NextRequest) {
       name: body.name,
       category: body.category,
       currentStock: body.currentStock,
+      ...(await resolveEntityCodes({
+        model: InventoryItem,
+        tenantId: String(body.tenantId),
+        name: String(body.name),
+        prefix: 'INV',
+        sku: body.sku,
+        barcode: body.barcode,
+      })),
       unit: body.unit,
       bestBefore: body.bestBefore || 'N/A',
     });
 
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to create inventory item', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `That ${duplicateField} is already used in this shop.` : 'Failed to create inventory item',
+        error: error.message,
+      },
       { status: 500 }
     );
   }
@@ -59,7 +73,7 @@ export async function PUT(req: NextRequest) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { id, currentStock, name, category, unit, bestBefore } = body;
+    const { id, currentStock, name, category, unit, bestBefore, sku, barcode } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -81,13 +95,32 @@ export async function PUT(req: NextRequest) {
     if (category !== undefined) item.category = category;
     if (unit !== undefined) item.unit = unit;
     if (bestBefore !== undefined) item.bestBefore = bestBefore;
+    if (sku !== undefined || barcode !== undefined) {
+      const resolvedCodes = await resolveEntityCodes({
+        model: InventoryItem,
+        tenantId: String(item.tenantId),
+        name: String(name ?? item.name),
+        prefix: 'INV',
+        sku: sku ?? item.sku,
+        barcode: barcode ?? item.barcode,
+        excludeId: String(item._id),
+      });
+      item.sku = resolvedCodes.sku;
+      item.barcode = resolvedCodes.barcode;
+      item.barcodeType = resolvedCodes.barcodeType;
+    }
 
     await item.save();
 
     return NextResponse.json({ success: true, data: item });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to update inventory item', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `That ${duplicateField} is already used in this shop.` : 'Failed to update inventory item',
+        error: error.message,
+      },
       { status: 500 }
     );
   }

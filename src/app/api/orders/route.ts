@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
+import { resolveOrderCodes } from '@/lib/barcodes';
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
 
     const order = await Order.create({
       tenantId: body.tenantId,
+      ...(await resolveOrderCodes(Order, String(body.tenantId))),
       items: body.items.map((item: any) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -76,8 +78,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: populatedOrder }, { status: 201 });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to create order', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `Failed to create order because ${duplicateField} must be unique.` : 'Failed to create order',
+        error: error.message,
+      },
       { status: 500 }
     );
   }

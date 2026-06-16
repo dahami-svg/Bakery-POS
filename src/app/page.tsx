@@ -21,6 +21,7 @@ import {
   Trash2,
   ShieldAlert,
   Activity,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
@@ -270,9 +271,18 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="lg:col-span-7 p-4 lg:p-8 rounded-xl bg-surface-container border border-outline-variant">
-            <div className="mb-6">
-              <h2 className="text-lg lg:text-xl font-bold text-on-surface">Recent Orders</h2>
-              <p className="text-on-surface-variant text-xs">Latest activity flowing through the POS</p>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg lg:text-xl font-bold text-on-surface">Recent Orders</h2>
+                <p className="text-on-surface-variant text-xs">Latest activity flowing through the POS</p>
+              </div>
+              <Link
+                href="/orders"
+                className="inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high whitespace-nowrap"
+              >
+                View All Orders
+                <ArrowRight size={14} />
+              </Link>
             </div>
             <div className="space-y-3">
               {recentOrders.map((order) => (

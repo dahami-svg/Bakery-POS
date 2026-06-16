@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import Product from '@/models/Product';
 import ProductDiscount from '@/models/ProductDiscount';
+import { resolveEntityCodes } from '@/lib/barcodes';
 
 export async function GET(req: NextRequest) {
   try {
@@ -100,14 +101,27 @@ export async function POST(req: NextRequest) {
       category: body.category,
       price: body.price,
       discountedPrice,
+      ...(await resolveEntityCodes({
+        model: Product,
+        tenantId: String(body.tenantId),
+        name: String(body.name),
+        prefix: 'PRD',
+        sku: body.sku,
+        barcode: body.barcode,
+      })),
       image: body.image,
       unit: body.unit,
     });
 
     return NextResponse.json({ success: true, data: product }, { status: 201 });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to create product', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `That ${duplicateField} is already used in this shop.` : 'Failed to create product',
+        error: error.message,
+      },
       { status: 500 }
     );
   }
@@ -117,7 +131,7 @@ export async function PUT(req: NextRequest) {
   try {
     await dbConnect();
     const body = await req.json();
-    const { id, name, category, price, discountedPrice, image, unit } = body;
+    const { id, name, category, price, discountedPrice, image, unit, sku, barcode } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -143,13 +157,32 @@ export async function PUT(req: NextRequest) {
     }
     if (image !== undefined) product.image = image;
     if (unit !== undefined) product.unit = unit;
+    if (sku !== undefined || barcode !== undefined) {
+      const resolvedCodes = await resolveEntityCodes({
+        model: Product,
+        tenantId: String(product.tenantId),
+        name: String(name ?? product.name),
+        prefix: 'PRD',
+        sku: sku ?? product.sku,
+        barcode: barcode ?? product.barcode,
+        excludeId: String(product._id),
+      });
+      product.sku = resolvedCodes.sku;
+      product.barcode = resolvedCodes.barcode;
+      product.barcodeType = resolvedCodes.barcodeType;
+    }
 
     await product.save();
 
     return NextResponse.json({ success: true, data: product });
   } catch (error: any) {
+    const duplicateField = error?.code === 11000 ? Object.keys(error?.keyPattern || {})[0] : null;
     return NextResponse.json(
-      { success: false, message: 'Failed to update product', error: error.message },
+      {
+        success: false,
+        message: duplicateField ? `That ${duplicateField} is already used in this shop.` : 'Failed to update product',
+        error: error.message,
+      },
       { status: 500 }
     );
   }

@@ -29,6 +29,8 @@ type InventoryForm = {
   name: string;
   category: string;
   currentStock: number;
+  sku: string;
+  barcode: string;
   unit: string;
   bestBefore: string;
 };
@@ -38,6 +40,8 @@ const emptyInventoryForm: InventoryForm = {
   name: '',
   category: '',
   currentStock: 0,
+  sku: '',
+  barcode: '',
   unit: 'kg',
   bestBefore: '',
 };
@@ -121,6 +125,8 @@ export default function InventoryPage() {
       name: item.name,
       category: item.category,
       currentStock: item.currentStock,
+      sku: item.sku || '',
+      barcode: item.barcode || '',
       unit: item.unit,
       bestBefore: item.bestBefore === 'N/A' ? '' : item.bestBefore || '',
     });
@@ -173,6 +179,8 @@ export default function InventoryPage() {
           name: inventoryForm.name.trim(),
           category: inventoryForm.category.trim(),
           currentStock: inventoryForm.currentStock,
+          sku: inventoryForm.sku.trim(),
+          barcode: inventoryForm.barcode.trim(),
           unit: inventoryForm.unit.trim(),
           bestBefore: inventoryForm.bestBefore.trim() || 'N/A',
         }),
@@ -353,7 +361,9 @@ export default function InventoryPage() {
   const filteredInventory = inventory.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+      item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(item.sku || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(item.barcode || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const sortedInventory = [...filteredInventory].sort((a, b) => {
@@ -518,7 +528,7 @@ export default function InventoryPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                     <input
                       type="text"
-                      placeholder="Search stock..."
+                      placeholder="Search name, SKU, or barcode..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="h-10 w-full sm:w-64 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
@@ -565,7 +575,7 @@ export default function InventoryPage() {
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-outline-variant bg-surface-container">
-                <table className="w-full text-left border-collapse min-w-[600px]">
+                <table className="w-full text-left border-collapse min-w-[760px]">
                   <thead>
                     <tr className="bg-surface-container-high/50 text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant">
                       <th className="px-4 lg:px-6 py-4">
@@ -578,6 +588,7 @@ export default function InventoryPage() {
                           <ChevronsUpDown size={12} />
                         </button>
                       </th>
+                      <th className="px-4 lg:px-6 py-4">Codes</th>
                       <th className="px-4 lg:px-6 py-4">
                         <button
                           type="button"
@@ -609,6 +620,12 @@ export default function InventoryPage() {
                           <td className="px-4 lg:px-6 py-4">
                             <p className="text-sm font-bold text-on-surface">{item.name}</p>
                             <p className="text-[10px] text-on-surface-variant font-medium">{item.category}</p>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold text-on-surface-variant">SKU: {item.sku || 'Auto'}</p>
+                              <p className="text-[10px] font-mono text-on-surface-variant break-all">{item.barcode || 'Barcode pending'}</p>
+                            </div>
                           </td>
                           <td className="px-4 lg:px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -648,7 +665,7 @@ export default function InventoryPage() {
 
                     {paginatedInventory.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="text-center py-10 text-on-surface-variant opacity-50 text-xs">
+                        <td colSpan={5} className="text-center py-10 text-on-surface-variant opacity-50 text-xs">
                           No inventory records matched your filter.
                         </td>
                       </tr>
@@ -843,9 +860,9 @@ export default function InventoryPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-on-surface-variant">Category</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-on-surface-variant">Category</label>
                           <input
                             type="text"
                             required
@@ -864,10 +881,33 @@ export default function InventoryPage() {
                             value={inventoryForm.unit}
                             onChange={(e) => updateInventoryForm('unit', e.target.value)}
                             className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
-                          />
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-on-surface-variant">SKU</label>
+                            <input
+                              type="text"
+                              placeholder="Leave blank to auto-generate"
+                              value={inventoryForm.sku}
+                              onChange={(e) => updateInventoryForm('sku', e.target.value)}
+                              className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-on-surface-variant">Barcode</label>
+                            <input
+                              type="text"
+                              placeholder="Leave blank to auto-generate"
+                              value={inventoryForm.barcode}
+                              onChange={(e) => updateInventoryForm('barcode', e.target.value)}
+                              className="w-full bg-surface border border-outline-variant rounded-xl px-3 py-3 text-sm text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
 
                     <div className="rounded-2xl border border-outline-variant bg-surface-container-low p-4 lg:p-5 space-y-4">
                       <div className="space-y-1">
@@ -1006,7 +1046,7 @@ export default function InventoryPage() {
                 </div>
                 <p className="text-sm leading-relaxed text-on-surface-variant">
                   First sheet columns: <strong>name</strong>, <strong>category</strong>, <strong>currentStock</strong> or
-                  <strong> stock</strong>, <strong>unit</strong>, optional <strong>bestBefore</strong>.
+                  <strong> stock</strong>, <strong>unit</strong>, optional <strong>sku</strong>, optional <strong>barcode</strong>, optional <strong>bestBefore</strong>.
                 </p>
                 <input
                   ref={inventoryImportRef}

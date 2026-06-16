@@ -10,6 +10,9 @@ export interface IOrderItem {
 
 export interface IOrder extends Document {
   tenantId: mongoose.Types.ObjectId;
+  orderNumber?: string;
+  barcode?: string;
+  barcodeType?: 'CODE128' | 'EAN13' | 'QR';
   items: IOrderItem[];
   status: 'new' | 'preparing' | 'ready' | 'completed' | 'cancelled';
   type: 'dine-in' | 'takeaway' | 'delivery' | 'walk-in' | 'quotation' | 'invoice' | 'quick-sale';
@@ -64,6 +67,13 @@ const OrderPricingSchema: Schema = new Schema(
 const OrderSchema: Schema = new Schema<IOrder>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+    orderNumber: { type: String, trim: true },
+    barcode: { type: String, trim: true },
+    barcodeType: {
+      type: String,
+      enum: ['CODE128', 'EAN13', 'QR'],
+      default: 'CODE128',
+    },
     items: { type: [OrderItemSchema], required: true },
     status: {
       type: String,
@@ -83,6 +93,9 @@ const OrderSchema: Schema = new Schema<IOrder>(
   },
   { timestamps: true }
 );
+
+OrderSchema.index({ tenantId: 1, orderNumber: 1 }, { unique: true, sparse: true });
+OrderSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
 
 const Order: Model<IOrder> =
   mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
