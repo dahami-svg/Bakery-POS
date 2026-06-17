@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ThemeMode, ThemePalette } from '@/lib/themes';
 
 export interface User {
   _id: string;
@@ -8,6 +9,9 @@ export interface User {
   email: string;
   role: 'super_admin' | 'tenant_admin' | 'staff';
   tenantId: string | null;
+  theme?: string;
+  themePalette?: ThemePalette;
+  themeMode?: ThemeMode;
 }
 
 interface AuthContextType {

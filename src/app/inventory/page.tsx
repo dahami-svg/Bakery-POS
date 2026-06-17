@@ -18,6 +18,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/context/TenantContext';
 import Link from 'next/link';
@@ -58,6 +59,16 @@ export default function InventoryPage() {
   const [inventorySortDirection, setInventorySortDirection] = useState<'asc' | 'desc'>('asc');
   const [inventoryPage, setInventoryPage] = useState(1);
   const [inventoryPageSize, setInventoryPageSize] = useState(5);
+  const [wasteSearchQuery, setWasteSearchQuery] = useState('');
+  const [wasteSortKey, setWasteSortKey] = useState<'name' | 'amount' | 'reason' | 'createdAt'>('createdAt');
+  const [wasteSortDirection, setWasteSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [wastePage, setWastePage] = useState(1);
+  const [wastePageSize, setWastePageSize] = useState(10);
+  const [expirySearchQuery, setExpirySearchQuery] = useState('');
+  const [expirySortKey, setExpirySortKey] = useState<'name' | 'currentStock' | 'bestBefore'>('bestBefore');
+  const [expirySortDirection, setExpirySortDirection] = useState<'asc' | 'desc'>('asc');
+  const [expiryPage, setExpiryPage] = useState(1);
+  const [expiryPageSize, setExpiryPageSize] = useState(10);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportForm, setShowImportForm] = useState(false);
@@ -72,6 +83,7 @@ export default function InventoryPage() {
   const [loggingWaste, setLoggingWaste] = useState(false);
   const [showWasteForm, setShowWasteForm] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = async (silent = false) => {
     if (!activeTenant) return;
@@ -107,6 +119,14 @@ export default function InventoryPage() {
   useEffect(() => {
     setInventoryPage(1);
   }, [searchQuery, inventorySortKey, inventorySortDirection, inventoryPageSize, tab]);
+
+  useEffect(() => {
+    setWastePage(1);
+  }, [wasteSearchQuery, wasteSortKey, wasteSortDirection, wastePageSize, tab]);
+
+  useEffect(() => {
+    setExpiryPage(1);
+  }, [expirySearchQuery, expirySortKey, expirySortDirection, expiryPageSize, tab]);
 
   const updateInventoryForm = (field: keyof InventoryForm, value: string | number) => {
     setInventoryForm((prev) => ({ ...prev, [field]: value }));
@@ -201,10 +221,6 @@ export default function InventoryPage() {
   };
 
   const handleDeleteInventoryItem = async (id: string) => {
-    if (!confirm('Delete this inventory item?')) {
-      return;
-    }
-
     try {
       const res = await fetch(`/api/inventory?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -221,6 +237,12 @@ export default function InventoryPage() {
     } catch {
       setFeedbackMessage('Network error while deleting inventory item.');
     }
+  };
+
+  const confirmDeleteInventoryItem = async () => {
+    if (!pendingDeleteItem) return;
+    await handleDeleteInventoryItem(pendingDeleteItem.id);
+    setPendingDeleteItem(null);
   };
 
   const handleLogWaste = async (e: React.FormEvent) => {
@@ -355,7 +377,6 @@ export default function InventoryPage() {
   const expiringSoonItems = inventory.filter((item) => item.bestBefore && item.bestBefore !== 'N/A');
   const expiringSoonCount = expiringSoonItems.length;
   const totalWasteAmount = wasteLogs.reduce((sum, waste) => sum + waste.amount, 0);
-  const inventoryPageTitle = activeTenant.type === 'hardware' ? 'Stock & Parts' : 'Stock & Inventory';
   const wasteActionLabel = activeTenant.type === 'hardware' ? 'Log Damage / Loss' : 'Log Damage / Waste';
 
   const filteredInventory = inventory.filter(
@@ -394,6 +415,90 @@ export default function InventoryPage() {
     inventoryPage * inventoryPageSize
   );
 
+  const filteredWasteLogs = wasteLogs.filter((log) => {
+    const item = log.ingredientId;
+    const query = wasteSearchQuery.toLowerCase();
+    return (
+      String(item?.name || '').toLowerCase().includes(query) ||
+      String(item?.category || '').toLowerCase().includes(query) ||
+      String(log.reason || '').toLowerCase().includes(query) ||
+      new Date(log.createdAt).toLocaleDateString().toLowerCase().includes(query)
+    );
+  });
+
+  const sortedWasteLogs = [...filteredWasteLogs].sort((a, b) => {
+    if (wasteSortKey === 'amount') {
+      const valueA = Number(a.amount || 0);
+      const valueB = Number(b.amount || 0);
+      return wasteSortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    if (wasteSortKey === 'createdAt') {
+      const valueA = new Date(a.createdAt).getTime();
+      const valueB = new Date(b.createdAt).getTime();
+      return wasteSortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    if (wasteSortKey === 'reason') {
+      const valueA = String(a.reason || '');
+      const valueB = String(b.reason || '');
+      return wasteSortDirection === 'asc'
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    }
+
+    const valueA = String(a.ingredientId?.name || '');
+    const valueB = String(b.ingredientId?.name || '');
+    return wasteSortDirection === 'asc'
+      ? valueA.localeCompare(valueB)
+      : valueB.localeCompare(valueA);
+  });
+
+  const wasteTotalPages = Math.max(1, Math.ceil(sortedWasteLogs.length / wastePageSize));
+  const paginatedWasteLogs = sortedWasteLogs.slice(
+    (wastePage - 1) * wastePageSize,
+    wastePage * wastePageSize
+  );
+
+  const filteredExpiryItems = expiringSoonItems.filter((item) => {
+    const query = expirySearchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query) ||
+      String(item.sku || '').toLowerCase().includes(query) ||
+      String(item.barcode || '').toLowerCase().includes(query) ||
+      String(item.bestBefore || '').toLowerCase().includes(query)
+    );
+  });
+
+  const sortedExpiryItems = [...filteredExpiryItems].sort((a, b) => {
+    if (expirySortKey === 'currentStock') {
+      const valueA = Number(a.currentStock || 0);
+      const valueB = Number(b.currentStock || 0);
+      return expirySortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    if (expirySortKey === 'bestBefore') {
+      const valueA = String(a.bestBefore || 'N/A');
+      const valueB = String(b.bestBefore || 'N/A');
+      return expirySortDirection === 'asc'
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    }
+
+    const valueA = String(a.name || '');
+    const valueB = String(b.name || '');
+    return expirySortDirection === 'asc'
+      ? valueA.localeCompare(valueB)
+      : valueB.localeCompare(valueA);
+  });
+
+  const expiryTotalPages = Math.max(1, Math.ceil(sortedExpiryItems.length / expiryPageSize));
+  const paginatedExpiryItems = sortedExpiryItems.slice(
+    (expiryPage - 1) * expiryPageSize,
+    expiryPage * expiryPageSize
+  );
+
   const handleInventorySort = (key: 'name' | 'currentStock' | 'bestBefore') => {
     if (inventorySortKey === key) {
       setInventorySortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -402,6 +507,26 @@ export default function InventoryPage() {
 
     setInventorySortKey(key);
     setInventorySortDirection(key === 'currentStock' ? 'desc' : 'asc');
+  };
+
+  const handleWasteSort = (key: 'name' | 'amount' | 'reason' | 'createdAt') => {
+    if (wasteSortKey === key) {
+      setWasteSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setWasteSortKey(key);
+    setWasteSortDirection(key === 'createdAt' || key === 'amount' ? 'desc' : 'asc');
+  };
+
+  const handleExpirySort = (key: 'name' | 'currentStock' | 'bestBefore') => {
+    if (expirySortKey === key) {
+      setExpirySortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setExpirySortKey(key);
+    setExpirySortDirection(key === 'currentStock' ? 'desc' : 'asc');
   };
 
   return (
@@ -519,21 +644,17 @@ export default function InventoryPage() {
           {tab === 'inventory' ? (
             <div className="space-y-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-on-surface">{inventoryPageTitle}</h2>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative min-w-[220px] flex-1 sm:flex-none">
+                <div className="relative min-w-[260px] flex-1 lg:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                     <input
                       type="text"
                       placeholder="Search name, SKU, or barcode..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-10 w-full sm:w-64 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                      className="h-10 w-full lg:w-100 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                     />
-                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 lg:justify-end">
                   <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
                     Sort by
                     <select
@@ -652,7 +773,7 @@ export default function InventoryPage() {
                                 <Edit2 size={14} />
                               </button>
                               <button
-                                onClick={() => handleDeleteInventoryItem(item._id)}
+                                onClick={() => setPendingDeleteItem({ id: item._id, name: item.name })}
                                 className="size-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error transition-colors cursor-pointer"
                               >
                                 <Trash2 size={14} />
@@ -710,19 +831,107 @@ export default function InventoryPage() {
             </div>
           ) : tab === 'waste' ? (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-on-surface">Logged Waste Incidents</h2>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="relative min-w-[260px] flex-1 lg:max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search item, category, reason, or date..."
+                    value={wasteSearchQuery}
+                    onChange={(e) => setWasteSearchQuery(e.target.value)}
+                    className="h-10 w-full lg:w-80 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Sort by
+                    <select
+                      value={`${wasteSortKey}:${wasteSortDirection}`}
+                      onChange={(e) => {
+                        const [key, direction] = e.target.value.split(':') as [
+                          'name' | 'amount' | 'reason' | 'createdAt',
+                          'asc' | 'desc'
+                        ];
+                        setWasteSortKey(key);
+                        setWasteSortDirection(direction);
+                      }}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      <option value="createdAt:desc">Newest First</option>
+                      <option value="createdAt:asc">Oldest First</option>
+                      <option value="name:asc">Item A-Z</option>
+                      <option value="name:desc">Item Z-A</option>
+                      <option value="amount:desc">Amount High-Low</option>
+                      <option value="amount:asc">Amount Low-High</option>
+                      <option value="reason:asc">Reason A-Z</option>
+                      <option value="reason:desc">Reason Z-A</option>
+                    </select>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Rows
+                    <select
+                      value={wastePageSize}
+                      onChange={(e) => setWastePageSize(Number(e.target.value))}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      {[5, 10, 20, 30].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
               <div className="overflow-x-auto rounded-xl border border-outline-variant bg-surface-container">
                 <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-surface-container-high/50 text-[10px] font-black uppercase tracking-[0.2em] text-on-surface-variant">
-                      <th className="px-4 lg:px-6 py-4">Wasted Item</th>
-                      <th className="px-4 lg:px-6 py-4">Amount Logged</th>
-                      <th className="px-4 lg:px-6 py-4">Reason</th>
-                      <th className="px-4 lg:px-6 py-4">Timestamp</th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleWasteSort('name')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Wasted Item
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleWasteSort('amount')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Amount Logged
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleWasteSort('reason')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Reason
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
+                      <th className="px-4 lg:px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleWasteSort('createdAt')}
+                          className="inline-flex items-center gap-1 hover:text-on-surface uppercase"
+                        >
+                          Timestamp
+                          <ChevronsUpDown size={12} />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30">
-                    {wasteLogs.map((log) => {
+                    {paginatedWasteLogs.map((log) => {
                       const item = log.ingredientId;
                       return (
                         <tr key={log._id} className="hover:bg-surface-container-high/40 transition-colors">
@@ -745,22 +954,105 @@ export default function InventoryPage() {
                       );
                     })}
 
-                    {wasteLogs.length === 0 && (
+                    {paginatedWasteLogs.length === 0 && (
                       <tr>
                         <td colSpan={4} className="text-center py-10 text-on-surface-variant opacity-50 text-xs">
-                          No waste incidents logged yet.
+                          No waste incidents matched your filter.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              {sortedWasteLogs.length > 0 && (
+                <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+                  <p className="shrink-0 whitespace-nowrap text-xs text-on-surface-variant">
+                    Showing {(wastePage - 1) * wastePageSize + 1}-
+                    {Math.min(wastePage * wastePageSize, sortedWasteLogs.length)} of {sortedWasteLogs.length}
+                  </p>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWastePage((prev) => Math.max(1, prev - 1))}
+                      disabled={wastePage === 1}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      <ChevronLeft size={14} />
+                      Prev
+                    </button>
+                    <span className="rounded-lg bg-surface-container px-3 py-2 text-xs font-bold text-on-surface">
+                      Page {wastePage} / {wasteTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setWastePage((prev) => Math.min(wasteTotalPages, prev + 1))}
+                      disabled={wastePage === wasteTotalPages}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      Next
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="relative min-w-[260px] flex-1 lg:max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Search item, category, SKU, barcode, or expiry..."
+                    value={expirySearchQuery}
+                    onChange={(e) => setExpirySearchQuery(e.target.value)}
+                    className="h-10 w-full lg:w-80 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Sort by
+                    <select
+                      value={`${expirySortKey}:${expirySortDirection}`}
+                      onChange={(e) => {
+                        const [key, direction] = e.target.value.split(':') as [
+                          'name' | 'currentStock' | 'bestBefore',
+                          'asc' | 'desc'
+                        ];
+                        setExpirySortKey(key);
+                        setExpirySortDirection(direction);
+                      }}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      <option value="bestBefore:asc">Expiry A-Z</option>
+                      <option value="bestBefore:desc">Expiry Z-A</option>
+                      <option value="name:asc">Name A-Z</option>
+                      <option value="name:desc">Name Z-A</option>
+                      <option value="currentStock:desc">Stock High-Low</option>
+                      <option value="currentStock:asc">Stock Low-High</option>
+                    </select>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Rows
+                    <select
+                      value={expiryPageSize}
+                      onChange={(e) => setExpiryPageSize(Number(e.target.value))}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      {[4, 8, 12, 16].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
               <h2 className="text-xl font-bold text-on-surface">Expirations & Critical Dates</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {expiringSoonItems.map((item) => (
+                {paginatedExpiryItems.map((item) => (
                   <div key={item._id} className="p-5 rounded-xl bg-surface-container border border-outline-variant flex items-start gap-4">
                     <div className="size-10 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <Calendar size={20} />
@@ -775,12 +1067,44 @@ export default function InventoryPage() {
                   </div>
                 ))}
 
-                {expiringSoonItems.length === 0 && (
+                {paginatedExpiryItems.length === 0 && (
                   <div className="col-span-1 sm:col-span-2 text-center py-10 text-on-surface-variant opacity-50 text-xs">
-                    No items require expiration tracking in this shop.
+                    No dated items matched your filter.
                   </div>
                 )}
               </div>
+              {sortedExpiryItems.length > 0 && (
+                <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+                  <p className="shrink-0 whitespace-nowrap text-xs text-on-surface-variant">
+                    Showing {(expiryPage - 1) * expiryPageSize + 1}-
+                    {Math.min(expiryPage * expiryPageSize, sortedExpiryItems.length)} of {sortedExpiryItems.length}
+                  </p>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpiryPage((prev) => Math.max(1, prev - 1))}
+                      disabled={expiryPage === 1}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      <ChevronLeft size={14} />
+                      Prev
+                    </button>
+                    <span className="rounded-lg bg-surface-container px-3 py-2 text-xs font-bold text-on-surface">
+                      Page {expiryPage} / {expiryTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExpiryPage((prev) => Math.min(expiryTotalPages, prev + 1))}
+                      disabled={expiryPage === expiryTotalPages}
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high disabled:opacity-40"
+                    >
+                      Next
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1161,6 +1485,15 @@ export default function InventoryPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteItem}
+        title="Delete Inventory Item"
+        message={`Delete "${pendingDeleteItem?.name ?? 'this item'}" from inventory?`}
+        confirmLabel="Delete"
+        onCancel={() => setPendingDeleteItem(null)}
+        onConfirm={() => void confirmDeleteInventoryItem()}
+      />
     </div>
   );
 }

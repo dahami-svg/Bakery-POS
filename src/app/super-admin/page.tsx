@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useTenant, Tenant } from "@/context/TenantContext";
 import {
   Trash2,
@@ -100,6 +101,10 @@ export default function SuperAdminPage() {
     useState<InvitationState>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [statusActionId, setStatusActionId] = useState<string | null>(null);
+  const [pendingDeleteTenant, setPendingDeleteTenant] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const handleToggleModule = async (
     tenant: Tenant,
@@ -198,12 +203,6 @@ export default function SuperAdminPage() {
   };
 
   const handleDeleteTenant = async (id: string) => {
-    if (
-      !confirm("Delete this shop? Tenant-linked records may become orphaned.")
-    ) {
-      return;
-    }
-
     try {
       const res = await fetch(`/api/tenants/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -211,6 +210,12 @@ export default function SuperAdminPage() {
         await refreshTenants();
       }
     } catch {}
+  };
+
+  const confirmDeleteTenant = async () => {
+    if (!pendingDeleteTenant) return;
+    await handleDeleteTenant(pendingDeleteTenant.id);
+    setPendingDeleteTenant(null);
   };
 
   const handleToggleTenantStatus = async (tenant: Tenant) => {
@@ -464,7 +469,12 @@ export default function SuperAdminPage() {
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteTenant(tenant._id)}
+                          onClick={() =>
+                            setPendingDeleteTenant({
+                              id: tenant._id,
+                              name: tenant.name,
+                            })
+                          }
                           className="cursor-pointer rounded-md p-1 text-on-surface-variant transition-all hover:bg-error/10 hover:text-error"
                         >
                           <Trash2 size={16} />
@@ -955,6 +965,15 @@ export default function SuperAdminPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteTenant}
+        title="Delete Tenant"
+        message={`Delete "${pendingDeleteTenant?.name ?? 'this tenant'}"? Tenant-linked records may become orphaned.`}
+        confirmLabel="Delete"
+        onCancel={() => setPendingDeleteTenant(null)}
+        onConfirm={() => void confirmDeleteTenant()}
+      />
     </div>
   );
 }

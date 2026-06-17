@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Sidebar } from '@/components/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { useLayout } from '@/context/LayoutContext';
@@ -13,8 +14,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { sidebarOpen, setSidebarOpen } = useLayout();
-  const { theme, toggleTheme } = useTheme();
+  const { themeMode, toggleTheme } = useTheme();
   const { activeTenant } = useTenant();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const isLoginPage = pathname === '/login' || pathname === '/setup-password';
 
   useEffect(() => {
@@ -27,8 +30,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
+    setLoggingOut(true);
+    try {
+      await logout();
+      window.location.href = '/login';
+    } finally {
+      setLoggingOut(false);
+      setShowLogoutConfirm(false);
+    }
   };
 
   const inventoryTitle = activeTenant?.enabledModules.includes('inventory')
@@ -44,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname === '/kds') return kdsTitle;
     if (pathname === '/inventory') return inventoryTitle;
     if (pathname === '/catalog') return catalogTitle;
+    if (pathname === '/settings') return 'Settings';
     if (pathname === '/super-admin') return 'Control Center';
     return 'Dashboard';
   })();
@@ -78,22 +88,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 lg:gap-3">
               <button
                 type="button"
-                onClick={toggleTheme}
+                onClick={() => void toggleTheme()}
                 className="relative inline-flex h-9 w-[72px] shrink-0 cursor-pointer items-center rounded-full border border-outline-variant bg-surface-container transition-colors lg:h-10 lg:w-20"
-                aria-label="Toggle theme"
-                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label="Toggle theme mode"
+                title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 <span
                   className={`absolute left-1 top-1 h-7 w-7 rounded-full bg-primary transition-transform lg:h-8 lg:w-8 ${
-                    theme === 'dark' ? 'translate-x-8 lg:translate-x-10' : 'translate-x-0'
+                    themeMode === 'dark' ? 'translate-x-8 lg:translate-x-10' : 'translate-x-0'
                   }`}
                 />
                 <span className="relative z-10 grid h-full w-full grid-cols-2 text-on-surface-variant">
                   <span className="flex h-full items-center justify-center">
-                    <Sun size={13} className={theme === 'dark' ? 'opacity-50' : 'text-on-primary'} />
+                    <Sun size={13} className={themeMode === 'dark' ? 'opacity-50' : 'text-on-primary'} />
                   </span>
                   <span className="flex h-full items-center justify-center">
-                    <Moon size={13} className={theme === 'dark' ? 'text-on-primary' : 'opacity-50'} />
+                    <Moon size={13} className={themeMode === 'dark' ? 'text-on-primary' : 'opacity-50'} />
                   </span>
                 </span>
               </button>
@@ -111,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="inline-flex items-center gap-1 rounded-xl border border-outline-variant px-2 lg:px-2.5 py-1.5 lg:py-2 text-xs font-bold text-on-surface-variant hover:bg-error/10 hover:text-error transition-colors cursor-pointer"
                     title="Sign out"
                   >
@@ -128,6 +138,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        busy={loggingOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={() => void handleLogout()}
+      />
     </div>
   );
 }

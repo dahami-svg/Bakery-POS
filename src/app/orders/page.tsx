@@ -28,6 +28,7 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilters)[number]>("all");
+  const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -68,8 +69,12 @@ export default function OrdersPage() {
       const barcode = String(order.barcode || "").toLowerCase();
       const type = String(order.type || "").toLowerCase();
       const status = String(order.status || "").toLowerCase();
+      const createdDate = order.createdAt
+        ? new Date(order.createdAt).toISOString().slice(0, 10)
+        : "";
 
       const matchesStatus = statusFilter === "all" || status === statusFilter;
+      const matchesDate = !dateFilter || createdDate === dateFilter;
       const matchesQuery =
         !query ||
         orderCode.includes(query) ||
@@ -77,13 +82,13 @@ export default function OrdersPage() {
         type.includes(query) ||
         status.includes(query);
 
-      return matchesStatus && matchesQuery;
+      return matchesStatus && matchesDate && matchesQuery;
     });
-  }, [orders, searchQuery, statusFilter]);
+  }, [orders, searchQuery, statusFilter, dateFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, pageSize]);
+  }, [searchQuery, statusFilter, dateFilter, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const paginatedOrders = filteredOrders.slice(
@@ -149,7 +154,8 @@ export default function OrdersPage() {
       <div className="p-4 lg:p-8 mx-auto w-full space-y-4 lg:space-y-6">
         <section>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="relative min-w-[240px]">
                   <Search
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
@@ -160,11 +166,34 @@ export default function OrdersPage() {
                     placeholder="Search order no, barcode, type..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-10 w-full lg:w-[280px] rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                    className="h-10 w-full lg:w-100 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Date
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    />
+                  </label>
+                  {dateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setDateFilter("")}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                    >
+                      Clear Date
+                    </button>
+                  )}
+                </div>
+                </div>
+
+                <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap">
                   {statusFilters.map((filter) => (
                     <button
                       key={filter}
@@ -181,9 +210,25 @@ export default function OrdersPage() {
                     </button>
                   ))}
                 </div>
+                  <div className="flex justify-end md:ml-auto md:justify-start xl:hidden">
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
+                    Rows
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="rounded-lg border border-outline-variant bg-surface px-3 py-2 text-xs text-on-surface outline-none"
+                    >
+                      {[10, 20, 30, 50].map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  </div>
+                </div>
               </div>
-
-              <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant xl:justify-end">
+              <label className="hidden xl:inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant xl:justify-end">
                 Rows
                 <select
                   value={pageSize}

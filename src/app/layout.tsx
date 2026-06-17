@@ -26,15 +26,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
-        <ThemeProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <ThemeProvider>
             <TenantProvider>
               <LayoutProvider>
                 <AppShell>{children}</AppShell>
               </LayoutProvider>
             </TenantProvider>
-          </AuthProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

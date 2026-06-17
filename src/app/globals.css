@@ -42,7 +42,8 @@
   --radius-md: 0.75rem;
 }
 
-:root {
+:root,
+[data-theme="midnight-dark"] {
   --surface: #10131a;
   --surface-dim: #10131a;
   --surface-bright: #363940;
@@ -77,7 +78,287 @@
   --chart-primary: #c7c9a2;
 }
 
-.light {
+[data-theme="midnight-light"] {
+  --surface: #fafafe;
+  --surface-dim: #e0e2ec;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3f8;
+  --surface-container: #e8eaf2;
+  --surface-container-high: #dddff0;
+  --surface-container-highest: #d0d3e3;
+  --surface-variant: #e0e3ed;
+  --on-surface: #1a1d26;
+  --on-surface-variant: #454a58;
+  --inverse-surface: #1a1d26;
+  --inverse-on-surface: #e0e2ec;
+  --outline: #8b919f;
+  --outline-variant: #c4c8d4;
+  --primary: #5e613c;
+  --on-primary: #ffffff;
+  --primary-container: #c7c9a2;
+  --secondary: #8c4a1c;
+  --on-secondary: #ffffff;
+  --secondary-container: #ffb68a;
+  --tertiary: #5b4e3f;
+  --on-tertiary: #ffffff;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --chart-grid: #dde1ee;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #c4c8d4;
+  --chart-tooltip-text: #1a1d26;
+  --chart-tick: #8b919f;
+  --chart-primary: #5e613c;
+}
+
+[data-theme="ocean-dark"] {
+  --surface: #091522;
+  --surface-dim: #08111c;
+  --surface-bright: #203248;
+  --surface-container-lowest: #050b12;
+  --surface-container-low: #0f1e2d;
+  --surface-container: #122438;
+  --surface-container-high: #1a3046;
+  --surface-container-highest: #23405b;
+  --surface-variant: #23364d;
+  --on-surface: #dbeaff;
+  --on-surface-variant: #a8bfd7;
+  --inverse-surface: #dbeaff;
+  --inverse-on-surface: #142131;
+  --outline: #7f9bb6;
+  --outline-variant: #314963;
+  --primary: #72d7ff;
+  --on-primary: #00263a;
+  --primary-container: #1a7088;
+  --secondary: #8fb7ff;
+  --on-secondary: #102449;
+  --secondary-container: #244476;
+  --tertiary: #8fe6d0;
+  --on-tertiary: #0f3a33;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --chart-grid: #132438;
+  --chart-tooltip-bg: #102030;
+  --chart-tooltip-border: #314963;
+  --chart-tooltip-text: #dbeaff;
+  --chart-tick: #7f9bb6;
+  --chart-primary: #72d7ff;
+}
+
+[data-theme="ocean-light"] {
+  --surface: #f4fbff;
+  --surface-dim: #dbeaf4;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eef7ff;
+  --surface-container: #e3f0fb;
+  --surface-container-high: #d7e8f8;
+  --surface-container-highest: #cadef0;
+  --surface-variant: #d8e6f3;
+  --on-surface: #152434;
+  --on-surface-variant: #456178;
+  --inverse-surface: #152434;
+  --inverse-on-surface: #e9f4ff;
+  --outline: #7391ab;
+  --outline-variant: #bfd1e0;
+  --primary: #0c5a78;
+  --on-primary: #ffffff;
+  --primary-container: #72d7ff;
+  --secondary: #2b68b8;
+  --on-secondary: #ffffff;
+  --secondary-container: #bfd6ff;
+  --tertiary: #16695e;
+  --on-tertiary: #ffffff;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --chart-grid: #d7e8f8;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #bfd1e0;
+  --chart-tooltip-text: #152434;
+  --chart-tick: #7391ab;
+  --chart-primary: #0c5a78;
+}
+
+[data-theme="forest-dark"] {
+  --surface: #0f1712;
+  --surface-dim: #0d1410;
+  --surface-bright: #314136;
+  --surface-container-lowest: #080d0a;
+  --surface-container-low: #161f19;
+  --surface-container: #1b261f;
+  --surface-container-high: #253329;
+  --surface-container-highest: #314237;
+  --surface-variant: #2d3b31;
+  --on-surface: #dce7db;
+  --on-surface-variant: #b5c7b4;
+  --inverse-surface: #dce7db;
+  --inverse-on-surface: #1b261f;
+  --outline: #87a08a;
+  --outline-variant: #3e5241;
+  --primary: #9fd38f;
+  --on-primary: #143018;
+  --primary-container: #44693f;
+  --secondary: #f4c56a;
+  --on-secondary: #3f2d00;
+  --secondary-container: #6a4e18;
+  --tertiary: #9cd4c8;
+  --on-tertiary: #123730;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --chart-grid: #18231c;
+  --chart-tooltip-bg: #18231c;
+  --chart-tooltip-border: #3e5241;
+  --chart-tooltip-text: #dce7db;
+  --chart-tick: #87a08a;
+  --chart-primary: #9fd38f;
+}
+
+[data-theme="forest-light"] {
+  --surface: #f6fbf5;
+  --surface-dim: #dde6dc;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff5ee;
+  --surface-container: #e4eee3;
+  --surface-container-high: #d9e7d8;
+  --surface-container-highest: #cedfcd;
+  --surface-variant: #dae7d7;
+  --on-surface: #1a251b;
+  --on-surface-variant: #4a5f4b;
+  --inverse-surface: #1a251b;
+  --inverse-on-surface: #e8f2e6;
+  --outline: #7f9680;
+  --outline-variant: #bfd0bf;
+  --primary: #355f37;
+  --on-primary: #ffffff;
+  --primary-container: #9fd38f;
+  --secondary: #8a640d;
+  --on-secondary: #ffffff;
+  --secondary-container: #f4c56a;
+  --tertiary: #2e6f64;
+  --on-tertiary: #ffffff;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --chart-grid: #d9e7d8;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #bfd0bf;
+  --chart-tooltip-text: #1a251b;
+  --chart-tick: #7f9680;
+  --chart-primary: #355f37;
+}
+
+[data-theme="sunset-dark"] {
+  --surface: #19111c;
+  --surface-dim: #150f17;
+  --surface-bright: #3f3243;
+  --surface-container-lowest: #0d0810;
+  --surface-container-low: #211722;
+  --surface-container: #291d2b;
+  --surface-container-high: #35263a;
+  --surface-container-highest: #43314a;
+  --surface-variant: #433049;
+  --on-surface: #f1e0e8;
+  --on-surface-variant: #d3bbc7;
+  --inverse-surface: #f1e0e8;
+  --inverse-on-surface: #291d2b;
+  --outline: #a98f9d;
+  --outline-variant: #5a445f;
+  --primary: #ff9f7a;
+  --on-primary: #522100;
+  --primary-container: #8a4623;
+  --secondary: #ffc36b;
+  --on-secondary: #472a00;
+  --secondary-container: #785117;
+  --tertiary: #e7a6d2;
+  --on-tertiary: #47203e;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --chart-grid: #261c29;
+  --chart-tooltip-bg: #261c29;
+  --chart-tooltip-border: #5a445f;
+  --chart-tooltip-text: #f1e0e8;
+  --chart-tick: #a98f9d;
+  --chart-primary: #ff9f7a;
+}
+
+[data-theme="sunset-light"] {
+  --surface: #fff7f6;
+  --surface-dim: #efe2df;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #fbefec;
+  --surface-container: #f6e8e4;
+  --surface-container-high: #f0ddd7;
+  --surface-container-highest: #e8d1ca;
+  --surface-variant: #efdcd7;
+  --on-surface: #2b1b17;
+  --on-surface-variant: #71524b;
+  --inverse-surface: #2b1b17;
+  --inverse-on-surface: #fceceb;
+  --outline: #a4837b;
+  --outline-variant: #dfc1ba;
+  --primary: #9a4522;
+  --on-primary: #ffffff;
+  --primary-container: #ffb79a;
+  --secondary: #8f5400;
+  --on-secondary: #ffffff;
+  --secondary-container: #ffddb0;
+  --tertiary: #875281;
+  --on-tertiary: #ffffff;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --chart-grid: #f0ddd7;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #dfc1ba;
+  --chart-tooltip-text: #2b1b17;
+  --chart-tick: #a4837b;
+  --chart-primary: #9a4522;
+}
+
+[data-theme="dawn-dark"] {
+  --surface: #171a23;
+  --surface-dim: #131720;
+  --surface-bright: #393d49;
+  --surface-container-lowest: #0d1017;
+  --surface-container-low: #1e222c;
+  --surface-container: #232732;
+  --surface-container-high: #2d3240;
+  --surface-container-highest: #383d4c;
+  --surface-variant: #323746;
+  --on-surface: #e5e7ef;
+  --on-surface-variant: #c2c7d8;
+  --inverse-surface: #e5e7ef;
+  --inverse-on-surface: #232732;
+  --outline: #8f96a9;
+  --outline-variant: #454c5d;
+  --primary: #d0cc8c;
+  --on-primary: #343111;
+  --primary-container: #918d51;
+  --secondary: #ffbf94;
+  --on-secondary: #542200;
+  --secondary-container: #7b3a10;
+  --tertiary: #d8c2bf;
+  --on-tertiary: #3c2d2b;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --chart-grid: #232732;
+  --chart-tooltip-bg: #232732;
+  --chart-tooltip-border: #454c5d;
+  --chart-tooltip-text: #e5e7ef;
+  --chart-tick: #8f96a9;
+  --chart-primary: #d0cc8c;
+}
+
+[data-theme="dawn-light"] {
   --surface: #fafafe;
   --surface-dim: #e0e2ec;
   --surface-bright: #ffffff;

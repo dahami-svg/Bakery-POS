@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { THEME_MODES, THEME_PALETTES } from '@/lib/themes';
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -18,6 +19,16 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tenant',
     default: null,
+  },
+  themePalette: {
+    type: String,
+    enum: THEME_PALETTES,
+    default: 'midnight',
+  },
+  themeMode: {
+    type: String,
+    enum: THEME_MODES,
+    default: 'dark',
   },
 }, { timestamps: true });
 

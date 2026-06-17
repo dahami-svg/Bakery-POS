@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDays, ChevronLeft, ChevronRight, FileSpreadsheet, Package, PencilLine, Plus, Search, ShieldAlert, Tags, Trash2, Upload, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTenant } from '@/context/TenantContext';
 import * as XLSX from 'xlsx';
 import { mapProductImportRows } from '@/lib/excel-import';
@@ -69,6 +70,11 @@ export default function CatalogPage() {
   const [productForm, setProductForm] = useState<ProductFormState>(emptyProductForm);
   const [discountForm, setDiscountForm] = useState<DiscountFormState>(emptyDiscountForm);
   const [productFeedback, setProductFeedback] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<
+    | { type: 'product'; id: string; name: string }
+    | { type: 'discount'; id: string; name: string }
+    | null
+  >(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchProducts = async (tenantId: string) => {
@@ -321,9 +327,6 @@ export default function CatalogPage() {
 
   const handleDeleteProduct = async (productId: string) => {
     if (!activeTenant?._id) return;
-    if (!confirm('Delete this product from the catalog?')) {
-      return;
-    }
 
     try {
       const res = await fetch(`/api/products?id=${productId}`, { method: 'DELETE' });
@@ -344,9 +347,6 @@ export default function CatalogPage() {
 
   const handleDeleteDiscount = async (discountId: string) => {
     if (!activeTenant?._id) return;
-    if (!confirm('Delete this discount?')) {
-      return;
-    }
 
     try {
       const res = await fetch(`/api/product-discounts?id=${discountId}`, { method: 'DELETE' });
@@ -406,6 +406,18 @@ export default function CatalogPage() {
       e.target.value = '';
       setImportingProducts(false);
     }
+  };
+
+  const confirmPendingDelete = async () => {
+    if (!pendingDelete) return;
+
+    if (pendingDelete.type === 'product') {
+      await handleDeleteProduct(pendingDelete.id);
+    } else {
+      await handleDeleteDiscount(pendingDelete.id);
+    }
+
+    setPendingDelete(null);
   };
 
   if (tenantLoading || (activeTenant && productsLoading)) {
@@ -518,19 +530,19 @@ export default function CatalogPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[220px] flex-1 sm:flex-none">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="relative min-w-[260px] flex-1 lg:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
                 <input
                   type="text"
                   placeholder="Search name, SKU, or barcode..."
                   value={productSearchQuery}
                   onChange={(e) => setProductSearchQuery(e.target.value)}
-                  className="h-10 w-full sm:w-64 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
+                  className="h-10 w-full lg:w-100 rounded-lg border border-outline-variant bg-surface pl-10 text-sm text-on-surface placeholder:text-on-surface-variant focus:ring-1 focus:ring-primary outline-none"
                 />
-              </div>
+            </div>
 
+            <div className="flex flex-wrap items-center gap-3 lg:justify-end">
               <label className="inline-flex items-center gap-2 text-xs font-bold text-on-surface-variant">
                 Sort by
                 <select
@@ -615,7 +627,7 @@ export default function CatalogPage() {
                       <PencilLine size={15} />
                     </button>
                     <button
-                      onClick={() => handleDeleteProduct(product._id)}
+                      onClick={() => setPendingDelete({ type: 'product', id: product._id, name: product.name })}
                       className="size-9 rounded-lg border border-outline-variant text-on-surface-variant hover:text-error hover:bg-error/10 flex items-center justify-center cursor-pointer"
                     >
                       <Trash2 size={15} />
@@ -710,7 +722,7 @@ export default function CatalogPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteDiscount(discount._id)}
+                        onClick={() => setPendingDelete({ type: 'discount', id: discount._id, name: discount.title })}
                         className="size-9 rounded-lg border border-outline-variant text-on-surface-variant hover:text-error hover:bg-error/10 flex items-center justify-center cursor-pointer"
                       >
                         <Trash2 size={15} />
@@ -1171,6 +1183,19 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title={pendingDelete?.type === 'product' ? 'Delete Product' : 'Delete Discount'}
+        message={
+          pendingDelete?.type === 'product'
+            ? `Delete "${pendingDelete.name}" from the catalog?`
+            : `Delete "${pendingDelete?.name}" discount?`
+        }
+        confirmLabel="Delete"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmPendingDelete()}
+      />
     </div>
   );
 }

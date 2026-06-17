@@ -13,6 +13,7 @@ import {
   Wrench,
   Cake,
   ShieldCheck,
+  Settings,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -175,7 +176,25 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           </div>
         )}
 
-        <div className={cn("mt-6 border-t border-outline-variant space-y-1", isCollapsed ? "px-0 pt-4" : "px-3 pt-6")}>
+        <div className={cn("mt-6 border-t border-outline-variant space-y-1", isCollapsed ? "pt-4" : "pt-6")}>
+          {!loading && (
+            <Link
+              href="/settings"
+              onClick={handleNavClick}
+              title={isCollapsed ? 'Settings' : undefined}
+              className={cn(
+                'flex items-center rounded-lg transition-colors cursor-pointer',
+                isCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2',
+                pathname === '/settings'
+                  ? 'bg-secondary-container text-on-secondary-container'
+                  : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+              )}
+            >
+              <Settings size={20} />
+              {!isCollapsed && <p className="text-sm font-semibold">Settings</p>}
+            </Link>
+          )}
+
           {isSuperAdmin && (
             <Link
               href="/super-admin"
