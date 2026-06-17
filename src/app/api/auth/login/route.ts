@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/dbConnect';
+import User from '@/models/User';
+import Tenant from '@/models/Tenant';
+import { signToken } from '@/lib/jwt';
+
+export async function POST(req: NextRequest) {
+  try {
+    await dbConnect();
+    const { email, password } = await req.json();
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    if (user.passwordSetupRequired) {
+      return NextResponse.json(
+        { success: false, message: 'Finish your account setup from the email invitation before signing in.' },
+        { status: 403 }
+      );
+    }
+
+    if (user.role !== 'super_admin' && user.tenantId) {
+      const tenant = await Tenant.findById(user.tenantId).select('isActive');
+      if (tenant && tenant.isActive === false) {
+        return NextResponse.json(
+          { success: false, message: 'This tenant workspace is deactivated. Please contact the super admin.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    const token = await signToken({
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId?.toString() || null,
+    });
+
+    const response = NextResponse.json({
+      success: true,
+      user: user.toJSON(),
+    });
+
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    });
+
+    return response;
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: 'Login failed', error: error.message },
+      { status: 500 }
+    );
+  }
+}

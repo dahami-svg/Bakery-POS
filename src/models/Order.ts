@@ -1,0 +1,103 @@
+import mongoose, { Schema, Document, Model } from 'mongoose';
+
+export interface IOrderItem {
+  _id?: mongoose.Types.ObjectId;
+  productId: mongoose.Types.ObjectId;
+  quantity: number;
+  note?: string;
+  status: 'pending' | 'preparing' | 'ready' | 'delivered';
+}
+
+export interface IOrder extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  orderNumber?: string;
+  barcode?: string;
+  barcodeType?: 'CODE128' | 'EAN13' | 'QR';
+  items: IOrderItem[];
+  status: 'new' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+  type: 'dine-in' | 'takeaway' | 'delivery' | 'walk-in' | 'quotation' | 'invoice' | 'quick-sale';
+  tableNumber?: number;
+  pricing?: {
+    subtotal: number;
+    adjustments: {
+      label: string;
+      mode: 'fixed' | 'percentage';
+      value: number;
+      amount: number;
+    }[];
+  };
+  total: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const OrderItemSchema: Schema = new Schema<IOrderItem>({
+  productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+  quantity: { type: Number, required: true, min: 1 },
+  note: { type: String },
+  status: {
+    type: String,
+    required: true,
+    enum: ['pending', 'preparing', 'ready', 'delivered'],
+    default: 'pending',
+  },
+});
+
+const OrderPricingSchema: Schema = new Schema(
+  {
+    subtotal: { type: Number, required: true, default: 0 },
+    adjustments: {
+      type: [
+        new Schema(
+          {
+            label: { type: String, required: true, trim: true },
+            mode: { type: String, enum: ['fixed', 'percentage'], default: 'fixed' },
+            value: { type: Number, required: true, default: 0 },
+            amount: { type: Number, required: true, default: 0 },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
+const OrderSchema: Schema = new Schema<IOrder>(
+  {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+    orderNumber: { type: String, trim: true },
+    barcode: { type: String, trim: true },
+    barcodeType: {
+      type: String,
+      enum: ['CODE128', 'EAN13', 'QR'],
+      default: 'CODE128',
+    },
+    items: { type: [OrderItemSchema], required: true },
+    status: {
+      type: String,
+      required: true,
+      enum: ['new', 'preparing', 'ready', 'completed', 'cancelled'],
+      default: 'new',
+    },
+    type: {
+      type: String,
+      required: true,
+      enum: ['dine-in', 'takeaway', 'delivery', 'walk-in', 'quotation', 'invoice', 'quick-sale'],
+      default: 'quick-sale',
+    },
+    tableNumber: { type: Number },
+    pricing: { type: OrderPricingSchema, required: false },
+    total: { type: Number, required: true },
+  },
+  { timestamps: true }
+);
+
+OrderSchema.index({ tenantId: 1, orderNumber: 1 }, { unique: true, sparse: true });
+OrderSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
+
+const Order: Model<IOrder> =
+  mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+
+export default Order;
